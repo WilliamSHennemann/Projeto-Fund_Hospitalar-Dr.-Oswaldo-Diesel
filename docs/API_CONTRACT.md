@@ -32,3 +32,7 @@ O JWT vai no cabeçalho `Authorization: Bearer <token>`.
 | GET | `/jobs/abandono`, `/jobs/retencao` |
 
 As rotas de perguntas, termo de imagem e tentativas de contato ainda são lacunas do backend e estão encapsuladas em `src/lib/api.ts` para facilitar a troca quando forem disponibilizadas.
+
+## Compatibilidade verificada com o backend recebido
+
+O backend responde em `http://localhost:3000/api` por padrão e atende as rotas centrais descritas acima. Há duas particularidades já consideradas pelo frontend: `POST /pesquisas` retorna `setor` como *slug* (não como objeto) e os endpoints administrativos de perguntas/termo/tentativas ainda não existem. O contato de uma avaliação anônima permanece bloqueado no backend; o frontend informa a falha de forma amigável até que a pendência seja corrigida.

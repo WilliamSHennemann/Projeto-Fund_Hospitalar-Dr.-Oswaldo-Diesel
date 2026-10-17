@@ -9,7 +9,8 @@ export interface Setor { id: number; nome: string; slug: string; url: string; qr
 export interface OpcaoResposta { id: number; pergunta_id: number; valor: number; rotulo: string; emoji?: string }
 export interface Pergunta { id: number; texto: string; tipo: TipoPergunta; geral: boolean; ordem: number; numero: number; url?: string; opcoes: OpcaoResposta[]; ativo?: boolean }
 export interface FluxoPesquisa { setor: Setor; fluxo: Pergunta[] }
-export interface PesquisaCriada { pesquisa_id: number; token: string; setor: Setor }
+/** O backend atual retorna o slug; o mock também aceita o objeto completo. */
+export interface PesquisaCriada { pesquisa_id: number; token: string; setor: Setor | string }
 export interface RespostaEnviada { ok: boolean; proximaPergunta: number | null; mediaParcial: number | null; ultima: boolean }
 export interface ResultadoFinalizacao { destino: 'ouvidoria' | 'agradecimento'; motivo: string }
 export interface Usuario { id: number; nome: string; email: string; perfil: Perfil; permissoes: string[]; setor_id?: number }
