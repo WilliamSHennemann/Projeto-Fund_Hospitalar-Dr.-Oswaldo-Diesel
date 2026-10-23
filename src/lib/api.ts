@@ -1,10 +1,11 @@
 import axios, { AxiosError } from 'axios'
 import { auth } from './auth'
+import { getApiBaseUrl } from './api-config'
 import { mockApi } from './mock/api'
 import type { DashboardResumo, DashboardSetor, ErroApi, FluxoPesquisa, LoginResposta, Manifestacao, PesquisaCriada, Pergunta, ResultadoFinalizacao, Setor, TvWall, Turno, Usuario } from '../types'
 
 const useMock = import.meta.env.VITE_USE_MOCK === 'true'
-const http = axios.create({ baseURL: import.meta.env.VITE_API_URL })
+const http = axios.create({ baseURL: useMock ? undefined : getApiBaseUrl(import.meta.env.VITE_API_URL) })
 http.interceptors.request.use(config => { const token = auth.getToken(); if (token) config.headers.Authorization = `Bearer ${token}`; return config })
 http.interceptors.response.use(r => r, (error: AxiosError<ErroApi>) => { if (error.response?.status === 401) auth.clear(); return Promise.reject(error) })
 const real = {
