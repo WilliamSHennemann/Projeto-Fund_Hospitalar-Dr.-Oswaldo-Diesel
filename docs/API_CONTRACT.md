@@ -17,7 +17,9 @@ Base configurável por `VITE_API_URL` (por exemplo, `http://localhost:3000/api`)
 | POST | `/pesquisas/:id/manifestacoes` | Registra elogio, reclamação ou sugestão |
 | GET | `/tvwall` | Indicadores públicos da TV Wall |
 
-`POST /pesquisas` envia `setor_id`, `anonimo`, `consentimento` e `data_atendimento` (`YYYY-MM-DD`). A data/hora de envio da avaliação deve ser registrada automaticamente pelo backend.
+`POST /pesquisas` envia `setor_id`, `anonimo`, `consentimento` e `data_atendimento` (`YYYY-MM-DD`). `data_atendimento` é persistida pelo backend; a data/hora de envio da avaliação também é registrada automaticamente.
+
+As respostas numéricas enviam `pergunta_id`, `valor` e `opcao_id`. Respostas de texto enviam somente `pergunta_id` e `texto`. Ao responder a última pergunta, o cliente chama `POST /pesquisas/:id/finalizar` e usa o campo `destino` (`ouvidoria` ou `agradecimento`) retornado pela API para decidir a próxima tela.
 
 ## Autenticado
 
@@ -25,16 +27,20 @@ O JWT vai no cabeçalho `Authorization: Bearer <token>`.
 
 | Método | Rota |
 |---|---|
-| POST / GET | `/auth/login`, `/auth/me` |
+| POST | `/auth/login` |
+| GET | `/auth/me` |
 | GET | `/dashboard/resumo`, `/dashboard/setores`, `/dashboard/setores/:id/turnos`, `/dashboard/em-andamento`, `/dashboard/equipes` |
 | GET / PATCH | `/manifestacoes`, `/manifestacoes/:id` |
 | GET | `/exportacoes/excel`, `/exportacoes/pdf` |
 | GET / POST | `/admin/setores` |
+| PATCH / DELETE | `/admin/setores/:id` |
 | GET / POST / PUT / DELETE | `/admin/perguntas`, `/admin/perguntas/:id` |
 | PATCH | `/admin/perguntas/reordenar` |
 | GET | `/admin/perfis`, `/admin/usuarios` |
 
 Os indicadores do dashboard aceitam filtros opcionais de período e setor (`inicio`, `fim` e `setor_id`). O módulo de termo de imagem foi removido do frontend por não fazer parte do fluxo de avaliação.
+
+Ao criar uma pergunta, `ordem` é opcional: quando ela não é enviada, o backend a calcula automaticamente. Perguntas `rostinho` usam cinco opções fixas (valores 1 a 5); perguntas `texto` não enviam opções; perguntas `multipla` enviam `opcoes` no formato `[{ valor, rotulo, emoji? }]`, com ao menos duas opções e valores únicos.
 
 ## Compatibilidade verificada com o backend recebido
 
