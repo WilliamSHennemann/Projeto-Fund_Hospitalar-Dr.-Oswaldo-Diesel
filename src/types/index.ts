@@ -1,5 +1,5 @@
 export type Perfil = 'super_admin' | 'ouvidoria' | 'gestao' | 'admin_setor' | 'visualizador'
-export type Acao = 'dashboard' | 'manifestacoes' | 'exportacoes' | 'jobs' | 'perguntas' | 'setores' | 'usuarios' | 'perfis' | 'limiares'
+export type Acao = 'dashboard' | 'manifestacoes' | 'exportacoes' | 'perguntas' | 'setores' | 'usuarios' | 'perfis' | 'limiares'
 export type TipoPergunta = 'rostinho' | 'nps' | 'texto' | 'multipla'
 export type StatusManifestacao = 'aberta' | 'em_tratamento' | 'concluida'
 export type TipoManifestacao = 'elogio' | 'reclamacao' | 'sugestao'

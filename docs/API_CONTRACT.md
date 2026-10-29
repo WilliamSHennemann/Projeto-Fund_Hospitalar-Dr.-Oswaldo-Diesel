@@ -33,7 +33,6 @@ O JWT vai no cabeçalho `Authorization: Bearer <token>`.
 | GET / POST / PUT / DELETE | `/admin/perguntas`, `/admin/perguntas/:id` |
 | PATCH | `/admin/perguntas/reordenar` |
 | GET | `/admin/perfis`, `/admin/usuarios` |
-| GET | `/jobs/abandono`, `/jobs/retencao` |
 
 Os indicadores do dashboard aceitam filtros opcionais de período e setor (`inicio`, `fim` e `setor_id`). O módulo de termo de imagem foi removido do frontend por não fazer parte do fluxo de avaliação.
 

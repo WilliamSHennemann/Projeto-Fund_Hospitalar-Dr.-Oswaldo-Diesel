@@ -1,10 +1,10 @@
 import type { Acao, Perfil, Usuario } from '../types'
 
-const todas: Acao[] = ['dashboard', 'manifestacoes', 'exportacoes', 'jobs', 'perguntas', 'setores', 'usuarios', 'perfis', 'limiares']
+const todas: Acao[] = ['dashboard', 'manifestacoes', 'exportacoes', 'perguntas', 'setores', 'usuarios', 'perfis', 'limiares']
 export const matrizPermissoes: Record<Perfil, readonly Acao[]> = {
   super_admin: todas,
   ouvidoria: ['dashboard', 'manifestacoes', 'exportacoes'],
-  gestao: ['dashboard', 'jobs', 'exportacoes', 'perguntas'],
+  gestao: ['dashboard', 'exportacoes', 'perguntas'],
   admin_setor: ['perguntas'],
   visualizador: ['dashboard']
 }
