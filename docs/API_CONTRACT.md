@@ -1,6 +1,6 @@
 # Contrato da API do SGEP
 
-Base configurável por `VITE_API_URL` (por exemplo, `http://localhost:3000/api`). Erros seguem `{ "erro", "codigo", "detalhes" }`.
+Base configurável por `VITE_API_URL` (por exemplo, `http://localhost:3000/api`). Erros seguem `{ "erro", "codigo", "detalhes" }`. Após a criação de uma pesquisa, as chamadas relacionadas a ela enviam `X-Pesquisa-Token` com o token retornado pela API.
 
 ## Público
 
@@ -17,6 +17,8 @@ Base configurável por `VITE_API_URL` (por exemplo, `http://localhost:3000/api`)
 | POST | `/pesquisas/:id/manifestacoes` | Registra elogio, reclamação ou sugestão |
 | GET | `/tvwall` | Indicadores públicos da TV Wall |
 
+`POST /pesquisas` envia `setor_id`, `anonimo`, `consentimento` e `data_atendimento` (`YYYY-MM-DD`). A data/hora de envio da avaliação deve ser registrada automaticamente pelo backend.
+
 ## Autenticado
 
 O JWT vai no cabeçalho `Authorization: Bearer <token>`.
@@ -28,11 +30,13 @@ O JWT vai no cabeçalho `Authorization: Bearer <token>`.
 | GET / PATCH | `/manifestacoes`, `/manifestacoes/:id` |
 | GET | `/exportacoes/excel`, `/exportacoes/pdf` |
 | GET / POST | `/admin/setores` |
+| GET / POST / PUT / DELETE | `/admin/perguntas`, `/admin/perguntas/:id` |
+| PATCH | `/admin/perguntas/reordenar` |
 | GET | `/admin/perfis`, `/admin/usuarios` |
 | GET | `/jobs/abandono`, `/jobs/retencao` |
 
-As rotas de perguntas, termo de imagem e tentativas de contato ainda são lacunas do backend e estão encapsuladas em `src/lib/api.ts` para facilitar a troca quando forem disponibilizadas.
+Os indicadores do dashboard aceitam filtros opcionais de período e setor (`inicio`, `fim` e `setor_id`). O módulo de termo de imagem foi removido do frontend por não fazer parte do fluxo de avaliação.
 
 ## Compatibilidade verificada com o backend recebido
 
-O backend responde em `http://localhost:3000/api` por padrão e atende as rotas centrais descritas acima. Há duas particularidades já consideradas pelo frontend: `POST /pesquisas` retorna `setor` como *slug* (não como objeto) e os endpoints administrativos de perguntas/termo/tentativas ainda não existem. O contato de uma avaliação anônima permanece bloqueado no backend; o frontend informa a falha de forma amigável até que a pendência seja corrigida.
+O backend responde em `http://localhost:3000/api` por padrão e atende as rotas centrais descritas acima. `POST /pesquisas` retorna `setor` como *slug* (não como objeto), formato que o frontend aceita. Para uso em produção, o backend deve fornecer o CRUD administrativo de perguntas, aceitar o contato voluntário com consentimento explícito e validar o token da pesquisa nas rotas públicas protegidas.

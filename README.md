@@ -42,7 +42,7 @@ O código do backend não está neste repositório, portanto confirme os nomes d
 - `/admin/login`: acesso da equipe. Mock: `super@fundacao.com` / `super123` ou `ouvidoria@fundacao.com` / `ouvidoria123`.
 - `/admin`: dashboard; o menu mostra apenas páginas permitidas para o perfil.
 - `/admin/manifestacoes`: Ouvidoria e detalhes de contato.
-- `/admin/perguntas`, `/admin/termo-imagem`, `/admin/setores`, `/admin/jobs`: gestão (Super Admin).
+- `/admin/perguntas`, `/admin/setores`, `/admin/jobs`: gestão administrativa conforme permissões.
 - `/tvwall`: painel público de indicadores, atualizado conforme `cache_seconds`.
 
 ## Estrutura
