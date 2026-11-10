@@ -1,1 +1,9 @@
-export function Marca() { return <header className="border-b border-slate-100 bg-white px-5 py-4"><div className="mx-auto flex max-w-3xl items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-red-700 text-xl text-white" aria-hidden="true">✚</div><div><p className="text-xs font-semibold uppercase tracking-wider text-red-700">SGEP</p><p className="text-sm font-semibold text-slate-800">Fundação Hospitalar Dr. Oswaldo Diesel</p></div></div></header> }
+import logoFhdod from '../assets/logo-fhdod.png'
+
+export function Marca() {
+  return <header className="border-b border-slate-100 bg-white px-5 py-3">
+    <div className="mx-auto max-w-3xl">
+      <img src={logoFhdod} alt="Fundação Hospitalar Dr. Oswaldo Diesel" className="h-auto w-52 max-w-full" />
+    </div>
+  </header>
+}
