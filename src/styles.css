@@ -5,7 +5,24 @@
 @layer base {
   * { @apply box-border; }
   html { -webkit-text-size-adjust: 100%; }
-  body { @apply m-0 min-w-[320px] bg-slate-50 font-sans text-slate-900 antialiased; }
+  body { @apply m-0 min-w-[320px] bg-warm-50 font-sans text-ink antialiased; }
   button, input, select, textarea { font: inherit; }
   button, input, select, textarea { @apply max-w-full; }
+  button, a, input, select, textarea { @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2; }
+  button, a { @apply transition-colors duration-150 motion-reduce:transition-none; }
+}
+
+@layer components {
+  .page-shell { @apply mx-auto max-w-6xl p-5 sm:p-6; }
+  .public-shell { @apply mx-auto max-w-xl p-4 sm:p-5 sm:pt-12; }
+  .card { @apply rounded-2xl bg-white p-5 shadow-card; }
+  .field { @apply mt-2 min-h-12 w-full rounded-xl border border-warm-100 bg-white px-3 text-ink shadow-sm placeholder:text-slate-500 focus:border-brand-600; }
+  .btn-primary { @apply min-h-12 rounded-xl bg-brand-600 px-5 font-bold text-white shadow-soft hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-secondary { @apply min-h-11 rounded-xl border border-warm-100 bg-white px-4 font-semibold text-ink hover:bg-warm-50; }
+  .alert-error { @apply rounded-xl border border-red-200 bg-red-50 p-3 text-red-800; }
+  .badge { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold; }
+}
+
+@layer utilities {
+  .text-slate-500 { @apply text-slate-600; }
 }
