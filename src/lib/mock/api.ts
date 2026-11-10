@@ -1,4 +1,4 @@
-import type { CriarPesquisa, DashboardResumo, DashboardSetor, FluxoPesquisa, LoginResposta, Manifestacao, PesquisaAndamento, PesquisaCriada, Pergunta, ResultadoFinalizacao, Setor, TvWall, Turno, Usuario } from '../../types'
+import type { CriarPesquisa, DashboardFiltro, DashboardResumo, DashboardSetor, FluxoPesquisa, LoginResposta, Manifestacao, PesquisaAndamento, PesquisaCriada, Pergunta, ResultadoFinalizacao, Setor, TvWall, Turno, Usuario } from '../../types'
 import { fluxoMock, setoresMock, tvWallMock } from './data'
 
 let pesquisaSequencia = 1
@@ -11,6 +11,27 @@ let perguntasMock: Pergunta[] = fluxoMock(setoresMock[0]).fluxo.map(pergunta => 
 
 function setorPorSlug(slug: string): Setor { const setor = setoresMock.find(item => item.slug === slug); if (!setor) throw new Error('SETOR_NOT_FOUND'); return setor }
 
+function linhasExportacaoMock(filtros: DashboardFiltro = {}) {
+  return tvWallMock.setores.filter(setor => !filtros.setor_id || setoresMock.find(item => item.slug === setor.slug)?.id === filtros.setor_id).map((setor, indice) => `${setor.nome},${120 - indice * 17},4.1,${setor.nps}`)
+}
+
+function pdfDemonstracaoMock(): Blob {
+  const conteudo = 'BT /F1 18 Tf 72 720 Td (SGEP - Relatorio demonstrativo de setores) Tj ET'
+  const objetos = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${conteudo.length} >>\nstream\n${conteudo}\nendstream`,
+  ]
+  let pdf = '%PDF-1.4\n'
+  const offsets = [0]
+  objetos.forEach((objeto, indice) => { offsets.push(new TextEncoder().encode(pdf).length); pdf += `${indice + 1} 0 obj\n${objeto}\nendobj\n` })
+  const inicioXref = new TextEncoder().encode(pdf).length
+  pdf += `xref\n0 ${objetos.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objetos.length + 1} /Root 1 0 R >>\nstartxref\n${inicioXref}\n%%EOF`
+  return new Blob([pdf], { type: 'application/pdf' })
+}
+
 export const mockApi = {
   setores: { listar: async () => setoresMock, obter: async (slug: string) => setorPorSlug(slug), fluxo: async (slug: string): Promise<FluxoPesquisa> => fluxoMock(setorPorSlug(slug)), pergunta: async (slug: string, numero: number) => { const fluxo = fluxoMock(setorPorSlug(slug)); const pergunta = fluxo.fluxo.find(item => item.numero === numero); if (!pergunta) throw new Error('PERGUNTA_NOT_FOUND'); return { pergunta, numero, total: fluxo.fluxo.length, opcoes: pergunta.opcoes } } },
   pesquisas: {
@@ -22,6 +43,6 @@ export const mockApi = {
   auth: { login: async (email: string, senha: string): Promise<LoginResposta> => { if (senha !== 'super123' && senha !== 'ouvidoria123') throw new Error('INVALID_CREDENTIALS'); return { token: 'mock-jwt', usuario: email === 'ouvidoria@fundacao.com' ? usuarioOuvidoria : usuarioSuper } }, me: async (): Promise<{ usuario: Usuario }> => ({ usuario: usuarioSuper }) },
   dashboard: { resumo: async (_filtros = {}) => resumo, setores: async (_filtros = {}): Promise<DashboardSetor[]> => tvWallMock.setores.map((setor, index) => ({ setor_id: index + 1, nome: setor.nome, nps: setor.nps, media: 4.1 })), turnos: async (_id?: number, _filtros = {}): Promise<Turno[]> => [{ turno: 'manhã', total: 80, nps: 70, media: 4.2 }], emAndamento: async (_filtros = {}): Promise<PesquisaAndamento[]> => [], equipes: async () => [] },
   manifestacoes: { listar: async (): Promise<Manifestacao[]> => manifestacoes, obter: async (id: number): Promise<Manifestacao> => { const item = manifestacoes.find(m => m.id === id); if (!item) throw new Error('MANIFESTACAO_NOT_FOUND'); return item }, atualizar: async (id: number, data: Partial<Manifestacao>) => { const indice = manifestacoes.findIndex(m => m.id === id); if (indice >= 0) manifestacoes[indice] = { ...manifestacoes[indice], ...data }; return manifestacoes[indice] } },
-  exportacoes: { excel: async () => ({ mensagem: 'Exportação simulada' }), pdf: async () => ({ mensagem: 'Exportação simulada' }) },
+  exportacoes: { excel: async (filtros: DashboardFiltro = {}): Promise<Blob> => { const linhas = ['Setor,Total de pesquisas,Média das avaliações,NPS', ...linhasExportacaoMock(filtros)]; return new Blob(['\uFEFF', linhas.join('\n')], { type: 'text/csv;charset=utf-8' }) }, pdf: async (_filtros: DashboardFiltro = {}): Promise<Blob> => pdfDemonstracaoMock() },
   admin: { setores: { listar: async () => setoresMock, criar: async (data: { nome: string; slug: string }) => { if (setoresMock.some(setor => setor.slug === data.slug)) throw new Error('SLUG_DUPLICADO'); const setor = { id: setoresMock.length + 1, nome: data.nome, slug: data.slug, url: `/${data.slug}`, qrcode: '', ativo: true }; setoresMock.push(setor); return setor }, atualizar: async (id: number, data: { nome: string; slug: string }) => { if (setoresMock.some(setor => setor.id !== id && setor.slug === data.slug)) throw new Error('SLUG_DUPLICADO'); const indice = setoresMock.findIndex(setor => setor.id === id); if (indice < 0) throw new Error('SETOR_NOT_FOUND'); setoresMock[indice] = { ...setoresMock[indice], ...data, url: `/${data.slug}` }; return setoresMock[indice] }, excluir: async (id: number) => { const indice = setoresMock.findIndex(setor => setor.id === id); if (indice < 0) throw new Error('SETOR_NOT_FOUND'); setoresMock[indice] = { ...setoresMock[indice], ativo: false } }, apagarPermanentemente: async (id: number) => { const indice = setoresMock.findIndex(setor => setor.id === id); if (indice < 0) throw new Error('SETOR_NOT_FOUND'); setoresMock.splice(indice, 1); perguntasMock = perguntasMock.filter(pergunta => pergunta.setor_id !== id) } }, perfis: async () => [], usuarios: async () => [], perguntas: { listar: async (): Promise<Pergunta[]> => [...perguntasMock].sort((a, b) => Number(a.geral) - Number(b.geral) || a.ordem - b.ordem), criar: async (data: object) => { const pergunta = data as { texto: string; setor_id: number; tipo: Pergunta['tipo']; opcoes?: Array<{ valor: number; rotulo: string; emoji?: string }> }; const doSetor = perguntasMock.filter(item => item.setor_id === pergunta.setor_id); perguntasMock.push({ id: Math.max(...perguntasMock.map(item => item.id)) + 1, texto: pergunta.texto, tipo: pergunta.tipo, geral: false, setor_id: pergunta.setor_id, ordem: doSetor.length + 1, numero: doSetor.length + 1, ativo: true, opcoes: (pergunta.opcoes ?? []).map((opcao, indice) => ({ ...opcao, id: 1000 + indice, pergunta_id: 0 })) }) }, atualizar: async (id: number, data: object) => { const indice = perguntasMock.findIndex(pergunta => pergunta.id === id); if (indice >= 0) perguntasMock[indice] = { ...perguntasMock[indice], ...(data as Partial<Pergunta>) } }, excluir: async (id: number) => { perguntasMock = perguntasMock.map(pergunta => pergunta.id === id ? { ...pergunta, ativo: false } : pergunta) }, apagarPermanentemente: async (id: number) => { perguntasMock = perguntasMock.filter(pergunta => pergunta.id !== id) }, reordenar: async (data: { perguntas: Array<{ id: number; ordem: number }> }) => { perguntasMock = perguntasMock.map(pergunta => ({ ...pergunta, ordem: data.perguntas.find(item => item.id === pergunta.id)?.ordem ?? pergunta.ordem })) } } },
 }

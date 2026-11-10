@@ -38,6 +38,10 @@ O JWT vai no cabeçalho `Authorization: Bearer <token>`.
 | PATCH | `/admin/perguntas/reordenar` |
 | GET | `/admin/perfis`, `/admin/usuarios` |
 
+### Exportações
+
+`GET /exportacoes/excel` e `GET /exportacoes/pdf` aceitam os filtros opcionais `inicio` e `fim` (`YYYY-MM-DD`, com `inicio ≤ fim`) e `setor_id` (inteiro positivo). As duas rotas exigem autenticação e a permissão `exportacoes`. Retornam um arquivo anexo com o resumo por setor (Setor, Total de pesquisas, Média das avaliações e NPS), sem respostas individuais ou manifestações. A resposta inclui `Content-Disposition` e `X-Exportacao-Id`; o frontend gera o nome localmente porque o CORS pode não expor esses cabeçalhos.
+
 Os indicadores do dashboard aceitam filtros opcionais de período e setor (`inicio`, `fim` e `setor_id`). O módulo de termo de imagem foi removido do frontend por não fazer parte do fluxo de avaliação.
 
 Ao criar uma pergunta, `ordem` é opcional: quando ela não é enviada, o backend a calcula automaticamente. Perguntas `rostinho` usam cinco opções fixas (valores 1 a 5); perguntas `texto` não enviam opções; perguntas `multipla` enviam `opcoes` no formato `[{ valor, rotulo, emoji? }]`, com ao menos duas opções e valores únicos.
