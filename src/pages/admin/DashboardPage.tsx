@@ -39,7 +39,7 @@ async function mensagemDaFalhaDeExportacao(erro: unknown): Promise<string> {
 }
 
 export function DashboardPage() {
-  const navigate = useNavigate(); const usuario = auth.getUser(); const gestao = isGestao(usuario); const setorGestaoId = usuario && gestao && usuario.setor_id !== undefined && Number.isInteger(usuario.setor_id) && usuario.setor_id > 0 ? usuario.setor_id : undefined; const escopoDisponivel = !gestao || setorGestaoId !== undefined
+  const navigate = useNavigate(); const usuario = auth.getUser(); const gestao = isGestao(usuario); const rotaLogin = gestao ? '/gestor/login' : '/admin/login'; const setorGestaoId = usuario && gestao && usuario.setor_id !== undefined && Number.isInteger(usuario.setor_id) && usuario.setor_id > 0 ? usuario.setor_id : undefined; const escopoDisponivel = !gestao || setorGestaoId !== undefined
   const [periodo, setPeriodo] = useState('30'); const [setorId, setSetorId] = useState<number | undefined>(); const [setorSelecionado, setSetorSelecionado] = useState<number | null>(null); const [exportando, setExportando] = useState<'excel' | 'pdf' | null>(null); const [erroExportacao, setErroExportacao] = useState('')
   const filtros = useMemo(() => ({ ...datasDoPeriodo(periodo), ...(gestao ? (setorGestaoId ? { setor_id: setorGestaoId } : {}) : setorId ? { setor_id: setorId } : {}) }), [periodo, setorId, gestao, setorGestaoId])
   const resumo = useQuery({ queryKey: ['resumo', filtros], queryFn: () => api.dashboard.resumo(filtros), enabled: escopoDisponivel })
@@ -52,7 +52,7 @@ export function DashboardPage() {
   const cards = resumo.data && [['NPS geral', resumo.data.nps_geral], ['Média geral', resumo.data.media_geral ?? '—'], ['Pesquisas', resumo.data.total_pesquisas], ['Parciais', `${Number(resumo.data.percentual_parciais).toFixed(1)}%`]]
   useEffect(() => {
     if (errosDashboard.some(erro => axios.isAxiosError(erro) && erro.response?.status === 401)) {
-      navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
+      navigate(rotaLogin, { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
     }
   }, [resumo.error, setores.error, andamento.error, turnos.error, navigate])
   async function exportar(formato: 'excel' | 'pdf') {
@@ -61,7 +61,7 @@ export function DashboardPage() {
       const arquivo = await api.exportacoes[formato](filtros)
       baixarArquivo(arquivo, `resultados-setores-${dataLocalIso()}.${formato === 'excel' ? 'xlsx' : 'pdf'}`)
     } catch (erro) {
-      if (axios.isAxiosError(erro) && erro.response?.status === 401) { navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } }); return }
+      if (axios.isAxiosError(erro) && erro.response?.status === 401) { navigate(rotaLogin, { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } }); return }
       setErroExportacao(axios.isAxiosError(erro) && erro.response?.status === 403 ? 'Sua conta não tem permissão para exportar estes dados.' : await mensagemDaFalhaDeExportacao(erro))
     } finally { setExportando(null) }
   }

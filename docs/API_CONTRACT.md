@@ -37,6 +37,9 @@ O JWT vai no cabeçalho `Authorization: Bearer <token>`.
 | GET / POST / PUT / DELETE | `/admin/perguntas`, `/admin/perguntas/:id` |
 | PATCH | `/admin/perguntas/reordenar` |
 | GET | `/admin/perfis`, `/admin/usuarios` |
+| POST (contrato esperado pelo frontend) | `/admin/usuarios` |
+
+O frontend espera criar um gestor enviando `nome`, `email`, `senha` (mínimo de 8 caracteres), `perfil: "gestao"` e `setor_id` para `POST /admin/usuarios`. A resposta deve ser o usuário criado, sem incluir a senha. Este endpoint ainda precisa ser implementado no backend antes que o cadastro funcione em produção. O backend deve restringi-lo a `super_admin`, validar que o setor está ativo e que o e-mail não está cadastrado, e armazenar a senha com hash. A autenticação usa `POST /auth/login`; contas de gestor devem retornar `perfil: "gestao"` e o `setor_id` atribuído.
 
 ### Exportações
 
