@@ -70,13 +70,51 @@ describe('exportação do dashboard', () => {
     await waitFor(() => expect(mocks.pdf).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2, inicio: expect.any(String), fim: expect.any(String) })))
   })
 
+  it('mantém Gestão restrita ao setor associado nos dashboards e exportações', async () => {
+    mocks.user = { ...usuario('visualizador'), permissoes: ['gestao'], setor_id: 2 }
+    renderDashboard()
+
+    expect(screen.queryByLabelText('Setor')).not.toBeInTheDocument()
+    await screen.findByText('Enfermagem')
+    await waitFor(() => {
+      expect(mocks.resumo).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
+      expect(mocks.setores).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
+      expect(mocks.emAndamento).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
+    })
+
+    fireEvent.click(screen.getByText('Enfermagem'))
+    await waitFor(() => expect(mocks.turnos).toHaveBeenCalledWith(2, expect.objectContaining({ setor_id: 2 })))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar Excel' }))
+    await waitFor(() => expect(mocks.excel).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 })))
+  })
+
+  it('não consulta dashboards de Gestão sem setor associado', async () => {
+    mocks.user = { ...usuario('gestao'), setor_id: undefined }
+    renderDashboard()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('não está vinculado a um setor')
+    expect(mocks.resumo).not.toHaveBeenCalled()
+    expect(mocks.setores).not.toHaveBeenCalled()
+    expect(mocks.emAndamento).not.toHaveBeenCalled()
+  })
+
   it('mostra erro e reabilita o botão quando a exportação falha', async () => {
-    mocks.user = usuario('gestao')
+    mocks.user = { ...usuario('gestao'), setor_id: 2 }
     mocks.excel.mockRejectedValueOnce(new Error('Falha simulada'))
     renderDashboard()
     const botao = await screen.findByRole('button', { name: 'Exportar Excel' })
     fireEvent.click(botao)
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível exportar. Tente novamente.')
     expect(botao).toBeEnabled()
+  })
+
+  it('informa quando a API nega a exportação', async () => {
+    mocks.user = { ...usuario('gestao'), setor_id: 2 }
+    mocks.excel.mockRejectedValueOnce({ isAxiosError: true, response: { status: 403, data: { erro: 'Acesso negado' } } })
+    renderDashboard()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Exportar Excel' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('não tem permissão para exportar')
   })
 })

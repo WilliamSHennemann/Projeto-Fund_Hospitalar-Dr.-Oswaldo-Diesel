@@ -8,6 +8,9 @@ export const matrizPermissoes: Record<Perfil, readonly Acao[]> = {
   admin_setor: ['perguntas'],
   visualizador: ['dashboard']
 }
+export function isGestao(usuario: Usuario | null): boolean {
+  return Boolean(usuario && usuario.perfil !== 'super_admin' && (usuario.permissoes.includes('gestao') || usuario.perfil === 'gestao'))
+}
 export function pode(usuario: Usuario | null, acao: Acao): boolean {
-  return Boolean(usuario && (usuario.permissoes.includes(acao) || matrizPermissoes[usuario.perfil].includes(acao)))
+  return Boolean(usuario && (usuario.permissoes.includes(acao) || matrizPermissoes[usuario.perfil].includes(acao) || (isGestao(usuario) && matrizPermissoes.gestao.includes(acao))))
 }

@@ -1,8 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import axios from 'axios'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
+import { auth } from '../../lib/auth'
+import { isGestao } from '../../lib/permissions'
 import type { OpcaoPergunta, Pergunta, Setor, TipoPergunta } from '../../types'
 import { Marca } from '../../components/Marca'
 import { NavegacaoAdmin } from '../../components/NavegacaoAdmin'
@@ -14,19 +17,43 @@ const opcoesRostinho = [
 
 export function PerguntasPage() {
   const cliente = useQueryClient()
-  const perguntas = useQuery<Pergunta[]>({ queryKey: ['perguntas'], queryFn: api.admin.perguntas.listar })
-  const setores = useQuery<Setor[]>({ queryKey: ['admin-setores'], queryFn: api.admin.setores.listar })
+  const navigate = useNavigate()
+  const usuario = auth.getUser()
+  const gestao = isGestao(usuario)
+  const setorGestaoId = gestao && usuario && usuario.setor_id !== undefined && Number.isInteger(usuario.setor_id) && usuario.setor_id > 0 ? usuario.setor_id : undefined
+  const escopoDisponivel = !gestao || setorGestaoId !== undefined
+  const perguntas = useQuery<Pergunta[]>({ queryKey: ['perguntas'], queryFn: api.admin.perguntas.listar, enabled: escopoDisponivel })
+  const setores = useQuery<Setor[]>({ queryKey: ['admin-setores'], queryFn: api.admin.setores.listar, enabled: escopoDisponivel })
   const [edicao, setEdicao] = useState<Pergunta | null>(null)
   const [aberto, setAberto] = useState(false)
   const [erro, setErro] = useState('')
   const [setorSelecionado, setSetorSelecionado] = useState<number | 'todos'>('todos')
   const [mostrarDesativadas, setMostrarDesativadas] = useState(false)
+  const setoresVisiveis = gestao ? setores.data?.filter(setor => setor.id === setorGestaoId) : setores.data
   const listaExibida = (perguntas.data ?? []).filter(pergunta =>
-    (mostrarDesativadas || pergunta.ativo !== false) && (pergunta.geral || setorSelecionado === 'todos' || pergunta.setor_id === setorSelecionado),
+    (mostrarDesativadas || pergunta.ativo !== false) && (pergunta.geral || (gestao ? pergunta.setor_id === setorGestaoId : setorSelecionado === 'todos' || pergunta.setor_id === setorSelecionado)),
   )
+  const erroConsulta = [perguntas.error, setores.error].find(error => axios.isAxiosError(error) && error.response?.status === 403)
+    ?? [perguntas.error, setores.error].find(Boolean)
+
+  useEffect(() => {
+    if ([perguntas.error, setores.error].some(error => axios.isAxiosError(error) && error.response?.status === 401)) {
+      navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
+    }
+  }, [perguntas.error, setores.error, navigate])
+
+  function mensagemDeErro(error: unknown, padrao: string) {
+    if (axios.isAxiosError(error) && error.response?.status === 403) return 'Sua conta não tem permissão para administrar perguntas.'
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
+      return 'Sua sessão expirou. Entre novamente para continuar.'
+    }
+    return padrao
+  }
 
   async function salvar(dados: { texto: string; setor_id: number; tipo: TipoPergunta; opcoes: OpcaoPergunta[] }) {
     setErro('')
+    if (gestao && dados.setor_id !== setorGestaoId) { setErro('Só é permitido administrar perguntas do setor vinculado à sua conta.'); return }
     try {
       const opcoes = dados.tipo === 'rostinho' ? opcoesRostinho : dados.tipo === 'multipla' ? dados.opcoes : []
       const payload = { ...dados, ativo: true, obrigatoria: false, opcoes }
@@ -34,28 +61,64 @@ export function PerguntasPage() {
       else await api.admin.perguntas.criar(payload)
       await cliente.invalidateQueries({ queryKey: ['perguntas'] })
       setAberto(false); setEdicao(null)
-    } catch { setErro('Não foi possível salvar a pergunta. Confira os dados e tente novamente.') }
+    } catch (error) { setErro(mensagemDeErro(error, 'Não foi possível salvar a pergunta. Confira os dados e tente novamente.')) }
   }
 
   async function excluir(pergunta: Pergunta) {
     if (!confirm(`Desativar a pergunta “${pergunta.texto}”?\n\nEla deixará de aparecer em novas avaliações, mas o histórico será preservado.`)) return
-    try { await api.admin.perguntas.excluir(pergunta.id); await cliente.invalidateQueries({ queryKey: ['perguntas'] }) } catch { setErro('Não foi possível desativar a pergunta.') }
+    try { await api.admin.perguntas.excluir(pergunta.id); await cliente.invalidateQueries({ queryKey: ['perguntas'] }) } catch (error) { setErro(mensagemDeErro(error, 'Não foi possível desativar a pergunta.')) }
   }
 
   async function apagarPermanentemente(pergunta: Pergunta) {
     if (!confirm(`APAGAR PERMANENTEMENTE a pergunta “${pergunta.texto}”?\n\nTodas as respostas vinculadas a ela serão apagadas. Esta ação não pode ser desfeita.`)) return
-    try { await api.admin.perguntas.apagarPermanentemente(pergunta.id); await cliente.invalidateQueries({ queryKey: ['perguntas'] }) } catch { setErro('Não foi possível apagar permanentemente a pergunta.') }
+    try { await api.admin.perguntas.apagarPermanentemente(pergunta.id); await cliente.invalidateQueries({ queryKey: ['perguntas'] }) } catch (error) { setErro(mensagemDeErro(error, 'Não foi possível apagar permanentemente a pergunta.')) }
   }
 
   async function mover(indice: number, direcao: -1 | 1) {
     const lista = listaExibida.filter(pergunta => !pergunta.geral); const destino = indice + direcao
     if (destino < 0 || destino >= lista.length) return
     const reorganizada = [...lista]; [reorganizada[indice], reorganizada[destino]] = [reorganizada[destino], reorganizada[indice]]
-    try { await api.admin.perguntas.reordenar({ perguntas: reorganizada.map((pergunta, ordem) => ({ id: pergunta.id, ordem: ordem + 1 })) }); await cliente.invalidateQueries({ queryKey: ['perguntas'] }) } catch { setErro('Não foi possível reordenar as perguntas.') }
+    try { await api.admin.perguntas.reordenar({ perguntas: reorganizada.map((pergunta, ordem) => ({ id: pergunta.id, ordem: ordem + 1 })) }); await cliente.invalidateQueries({ queryKey: ['perguntas'] }) } catch (error) { setErro(mensagemDeErro(error, 'Não foi possível reordenar as perguntas.')) }
   }
 
   const perguntasReordenaveis = listaExibida.filter(pergunta => !pergunta.geral && pergunta.ativo !== false)
-  return <Admin titulo="Perguntas"><div className="flex flex-wrap items-center justify-between gap-3"><p className="max-w-2xl leading-relaxed text-slate-700">Selecione um setor para administrar suas perguntas. A pergunta NPS é fixa e sempre encerra a pesquisa.</p><button onClick={() => { setEdicao(null); setAberto(true) }} className="btn-primary">Nova pergunta</button></div><div className="mt-5 flex flex-wrap items-end gap-4 rounded-2xl bg-warm-50 p-4"><label className="block max-w-sm flex-1 font-semibold">Perguntas do setor<select value={setorSelecionado} onChange={e => setSetorSelecionado(e.target.value === 'todos' ? 'todos' : Number(e.target.value))} className="field"><option value="todos">Todos os setores</option>{setores.data?.map(setor => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}</select></label><label className="flex min-h-12 items-center gap-2 rounded-xl px-2 font-semibold text-ink"><input type="checkbox" checked={mostrarDesativadas} onChange={e => setMostrarDesativadas(e.target.checked)} className="size-5 accent-brand-600" /> Mostrar perguntas desativadas</label></div>{setorSelecionado === 'todos' && <p className="mt-3 text-sm text-slate-700">Para alterar a ordem, selecione um setor específico.</p>}{erro && <p role="alert" className="alert-error mt-4">⚠ {erro}</p>}<div className="mt-5 space-y-3">{perguntas.isLoading && <p className="rounded-xl bg-warm-50 p-4 text-slate-700">Carregando perguntas…</p>}{listaExibida.map(pergunta => { const inativa = pergunta.ativo === false; const indice = perguntasReordenaveis.findIndex(item => item.id === pergunta.id); return <article key={pergunta.id} className="flex flex-col gap-3 rounded-2xl border border-warm-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-ink"><strong>{pergunta.geral ? 'NPS fixa: ' : ''}</strong>{pergunta.texto} {inativa && <span className="badge ml-2 bg-slate-100 text-slate-800">Desativada</span>}</p><p className="mt-1 text-sm text-slate-700">{pergunta.geral ? 'Pergunta geral' : setores.data?.find(setor => setor.id === pergunta.setor_id)?.nome ?? 'Setor'} · {pergunta.tipo} · ordem {pergunta.ordem}</p></div><div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">{!inativa && <><button disabled={pergunta.geral || setorSelecionado === 'todos' || indice === 0} onClick={() => mover(indice, -1)} className="btn-secondary min-h-10 px-3 disabled:opacity-40" aria-label="Mover para cima">↑ Mover</button><button disabled={pergunta.geral || setorSelecionado === 'todos' || indice === perguntasReordenaveis.length - 1} onClick={() => mover(indice, 1)} className="btn-secondary min-h-10 px-3 disabled:opacity-40" aria-label="Mover para baixo">↓ Mover</button><button disabled={pergunta.geral} onClick={() => { setEdicao(pergunta); setAberto(true) }} className="btn-secondary min-h-10 px-3 disabled:opacity-40">Editar</button><button disabled={pergunta.geral} onClick={() => excluir(pergunta)} className="min-h-10 rounded-xl border border-amber-400 bg-amber-50 px-3 font-semibold text-amber-950 disabled:opacity-40">Desativar</button></>}<button disabled={pergunta.geral} onClick={() => apagarPermanentemente(pergunta)} className="min-h-10 rounded-xl border border-red-300 bg-red-50 px-3 font-semibold text-red-900 disabled:opacity-40">Apagar permanentemente</button></div></article> })}</div>{aberto && <FormularioPergunta pergunta={edicao} setores={setores.data ?? []} setorPreselecionado={setorSelecionado === 'todos' ? undefined : setorSelecionado} onCancelar={() => { setAberto(false); setEdicao(null) }} onSalvar={salvar} />}</Admin>
+  return <Admin titulo="Perguntas">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="max-w-2xl leading-relaxed text-slate-700">{gestao ? 'Administre as perguntas do setor vinculado à sua conta. A pergunta NPS é fixa e sempre encerra a pesquisa.' : 'Selecione um setor para administrar suas perguntas. A pergunta NPS é fixa e sempre encerra a pesquisa.'}</p>
+      <button disabled={!escopoDisponivel} onClick={() => { setEdicao(null); setAberto(true) }} className="btn-primary disabled:opacity-40">Nova pergunta</button>
+    </div>
+    <div className="mt-5 flex flex-wrap items-end gap-4 rounded-2xl bg-warm-50 p-4">
+      {gestao ? <p className="font-semibold">Setor: {setoresVisiveis?.[0]?.nome ?? 'vinculado à sua conta'}</p> : <label className="block max-w-sm flex-1 font-semibold">Perguntas do setor<select value={setorSelecionado} onChange={e => setSetorSelecionado(e.target.value === 'todos' ? 'todos' : Number(e.target.value))} className="field"><option value="todos">Todos os setores</option>{setoresVisiveis?.map(setor => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}</select></label>}
+      <label className="flex min-h-12 items-center gap-2 rounded-xl px-2 font-semibold text-ink"><input type="checkbox" checked={mostrarDesativadas} onChange={e => setMostrarDesativadas(e.target.checked)} className="size-5 accent-brand-600" /> Mostrar perguntas desativadas</label>
+    </div>
+    {gestao && !escopoDisponivel && <p role="alert" className="alert-error mt-4">⚠ Seu usuário não está vinculado a um setor. Solicite a correção do vínculo ao super administrador.</p>}
+    {erroConsulta && <p role="alert" className="alert-error mt-4">⚠ {axios.isAxiosError(erroConsulta) && erroConsulta.response?.status === 403 ? 'Sua conta não tem permissão para administrar perguntas.' : 'Não foi possível carregar as perguntas.'}</p>}
+    {!gestao && setorSelecionado === 'todos' && <p className="mt-3 text-sm text-slate-700">Para alterar a ordem, selecione um setor específico.</p>}
+    {erro && <p role="alert" className="alert-error mt-4">⚠ {erro}</p>}
+    <div className="mt-5 space-y-3">
+      {perguntas.isLoading && <p className="rounded-xl bg-warm-50 p-4 text-slate-700">Carregando perguntas…</p>}
+      {listaExibida.map(pergunta => {
+        const inativa = pergunta.ativo === false
+        const indice = perguntasReordenaveis.findIndex(item => item.id === pergunta.id)
+        return <article key={pergunta.id} className="flex flex-col gap-3 rounded-2xl border border-warm-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium text-ink"><strong>{pergunta.geral ? 'NPS fixa: ' : ''}</strong>{pergunta.texto} {inativa && <span className="badge ml-2 bg-slate-100 text-slate-800">Desativada</span>}</p>
+            <p className="mt-1 text-sm text-slate-700">{pergunta.geral ? 'Pergunta geral' : setoresVisiveis?.find(setor => setor.id === pergunta.setor_id)?.nome ?? 'Setor'} · {pergunta.tipo} · ordem {pergunta.ordem}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            {!inativa && <>
+              <button disabled={pergunta.geral || (!gestao && setorSelecionado === 'todos') || indice === 0} onClick={() => mover(indice, -1)} className="btn-secondary min-h-10 px-3 disabled:opacity-40" aria-label="Mover para cima">↑ Mover</button>
+              <button disabled={pergunta.geral || (!gestao && setorSelecionado === 'todos') || indice === perguntasReordenaveis.length - 1} onClick={() => mover(indice, 1)} className="btn-secondary min-h-10 px-3 disabled:opacity-40" aria-label="Mover para baixo">↓ Mover</button>
+              <button disabled={pergunta.geral} onClick={() => { setEdicao(pergunta); setAberto(true) }} className="btn-secondary min-h-10 px-3 disabled:opacity-40">Editar</button>
+              <button disabled={pergunta.geral} onClick={() => excluir(pergunta)} className="min-h-10 rounded-xl border border-amber-400 bg-amber-50 px-3 font-semibold text-amber-950 disabled:opacity-40">Desativar</button>
+            </>}
+            <button disabled={pergunta.geral} onClick={() => apagarPermanentemente(pergunta)} className="min-h-10 rounded-xl border border-red-300 bg-red-50 px-3 font-semibold text-red-900 disabled:opacity-40">Apagar permanentemente</button>
+          </div>
+        </article>
+      })}
+    </div>
+    {aberto && <FormularioPergunta pergunta={edicao} setores={setoresVisiveis ?? []} setorPreselecionado={gestao ? setorGestaoId : setorSelecionado === 'todos' ? undefined : setorSelecionado} onCancelar={() => { setAberto(false); setEdicao(null) }} onSalvar={salvar} />}
+  </Admin>
 }
 
 function FormularioPergunta({ pergunta, setores, setorPreselecionado, onCancelar, onSalvar }: { pergunta: Pergunta | null; setores: Setor[]; setorPreselecionado?: number; onCancelar: () => void; onSalvar: (dados: { texto: string; setor_id: number; tipo: TipoPergunta; opcoes: OpcaoPergunta[] }) => void }) {

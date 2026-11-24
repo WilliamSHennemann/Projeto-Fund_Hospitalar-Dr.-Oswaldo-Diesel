@@ -3,9 +3,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Usuario } from '../../types'
 
-const mocks = vi.hoisted(() => ({ criar: vi.fn().mockResolvedValue({}), listarPerguntas: vi.fn().mockResolvedValue([]), listarSetores: vi.fn().mockResolvedValue([{ id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true }]), atualizarPergunta: vi.fn().mockResolvedValue({}), excluirPergunta: vi.fn().mockResolvedValue({}), apagarPergunta: vi.fn().mockResolvedValue({}), reordenar: vi.fn().mockResolvedValue({}), criarSetor: vi.fn().mockResolvedValue({}), atualizarSetor: vi.fn().mockResolvedValue({}), excluirSetor: vi.fn().mockResolvedValue({}), apagarSetor: vi.fn().mockResolvedValue({}) }))
+const mocks = vi.hoisted(() => ({ user: null as Usuario | null, criar: vi.fn().mockResolvedValue({}), listarPerguntas: vi.fn().mockResolvedValue([]), listarSetores: vi.fn().mockResolvedValue([{ id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true }]), atualizarPergunta: vi.fn().mockResolvedValue({}), excluirPergunta: vi.fn().mockResolvedValue({}), apagarPergunta: vi.fn().mockResolvedValue({}), reordenar: vi.fn().mockResolvedValue({}), criarSetor: vi.fn().mockResolvedValue({}), atualizarSetor: vi.fn().mockResolvedValue({}), excluirSetor: vi.fn().mockResolvedValue({}), apagarSetor: vi.fn().mockResolvedValue({}) }))
 vi.mock('../../lib/api', () => ({ api: { admin: { perguntas: { criar: mocks.criar, listar: mocks.listarPerguntas, atualizar: mocks.atualizarPergunta, excluir: mocks.excluirPergunta, apagarPermanentemente: mocks.apagarPergunta, reordenar: mocks.reordenar }, setores: { listar: mocks.listarSetores, criar: mocks.criarSetor, atualizar: mocks.atualizarSetor, excluir: mocks.excluirSetor, apagarPermanentemente: mocks.apagarSetor } } } }))
+vi.mock('../../lib/auth', () => ({ auth: { getUser: () => mocks.user } }))
 vi.mock('../../components/Marca', () => ({ Marca: () => null }))
 vi.mock('../../components/NavegacaoAdmin', () => ({ NavegacaoAdmin: () => null }))
 import { PerguntasPage, SetoresPage } from './GestaoPages'
@@ -17,12 +19,37 @@ function renderPage(page: React.ReactNode) {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  mocks.user = null
   mocks.listarPerguntas.mockResolvedValue([])
   mocks.listarSetores.mockResolvedValue([{ id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true }])
   vi.unstubAllGlobals()
 })
 
 describe('cadastro de pergunta múltipla', () => {
+  it('restringe Gestão ao setor vinculado na lista e no formulário', async () => {
+    const setores = [
+      { id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true },
+      { id: 2, nome: 'Enfermagem', slug: 'enfermagem', url: '/enfermagem', qrcode: '', ativo: true },
+    ]
+    mocks.user = { id: 10, nome: 'Gestão', email: 'gestao@fundacao.com', perfil: 'visualizador', permissoes: ['gestao'], setor_id: 1 }
+    mocks.listarSetores.mockResolvedValueOnce(setores)
+    mocks.listarPerguntas.mockResolvedValueOnce([
+      { id: 1, texto: 'Pergunta da Recepção', tipo: 'texto', geral: false, setor_id: 1, ordem: 1, numero: 1, ativo: true, opcoes: [] },
+      { id: 2, texto: 'Pergunta da Enfermagem', tipo: 'texto', geral: false, setor_id: 2, ordem: 1, numero: 1, ativo: true, opcoes: [] },
+    ])
+    renderPage(<PerguntasPage />)
+
+    expect(await screen.findByText('Pergunta da Recepção')).toBeInTheDocument()
+    expect(screen.queryByText('Pergunta da Enfermagem')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Perguntas do setor')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nova pergunta' }))
+    const setor = screen.getByLabelText('Setor')
+    expect(setor).toHaveValue('1')
+    expect(setor.querySelectorAll('option')).toHaveLength(1)
+    expect(screen.queryByRole('option', { name: 'Enfermagem' })).not.toBeInTheDocument()
+  })
+
   it('envia opções numeradas e não envia ordem', async () => {
     renderPage(<PerguntasPage />)
     await screen.findByRole('option', { name: 'Recepção' })
