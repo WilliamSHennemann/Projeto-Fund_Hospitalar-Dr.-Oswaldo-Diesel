@@ -5,8 +5,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Usuario } from '../../types'
 
-const mocks = vi.hoisted(() => ({ user: null as Usuario | null, criar: vi.fn().mockResolvedValue({}), listarPerguntas: vi.fn().mockResolvedValue([]), listarSetores: vi.fn().mockResolvedValue([{ id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true }]), atualizarPergunta: vi.fn().mockResolvedValue({}), excluirPergunta: vi.fn().mockResolvedValue({}), apagarPergunta: vi.fn().mockResolvedValue({}), reordenar: vi.fn().mockResolvedValue({}), criarSetor: vi.fn().mockResolvedValue({}), atualizarSetor: vi.fn().mockResolvedValue({}), excluirSetor: vi.fn().mockResolvedValue({}), apagarSetor: vi.fn().mockResolvedValue({}) }))
-vi.mock('../../lib/api', () => ({ api: { admin: { perguntas: { criar: mocks.criar, listar: mocks.listarPerguntas, atualizar: mocks.atualizarPergunta, excluir: mocks.excluirPergunta, apagarPermanentemente: mocks.apagarPergunta, reordenar: mocks.reordenar }, setores: { listar: mocks.listarSetores, criar: mocks.criarSetor, atualizar: mocks.atualizarSetor, excluir: mocks.excluirSetor, apagarPermanentemente: mocks.apagarSetor } } } }))
+const mocks = vi.hoisted(() => ({ user: null as Usuario | null, criar: vi.fn().mockResolvedValue({}), listarPerguntas: vi.fn().mockResolvedValue([]), listarSetores: vi.fn().mockResolvedValue([{ id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true }]), listarSetoresPublicos: vi.fn().mockResolvedValue([{ id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true }]), atualizarPergunta: vi.fn().mockResolvedValue({}), excluirPergunta: vi.fn().mockResolvedValue({}), apagarPergunta: vi.fn().mockResolvedValue({}), reordenar: vi.fn().mockResolvedValue({}), criarSetor: vi.fn().mockResolvedValue({}), atualizarSetor: vi.fn().mockResolvedValue({}), excluirSetor: vi.fn().mockResolvedValue({}), apagarSetor: vi.fn().mockResolvedValue({}) }))
+vi.mock('../../lib/api', () => ({ api: { setores: { listar: mocks.listarSetoresPublicos }, admin: { perguntas: { criar: mocks.criar, listar: mocks.listarPerguntas, atualizar: mocks.atualizarPergunta, excluir: mocks.excluirPergunta, apagarPermanentemente: mocks.apagarPergunta, reordenar: mocks.reordenar }, setores: { listar: mocks.listarSetores, criar: mocks.criarSetor, atualizar: mocks.atualizarSetor, excluir: mocks.excluirSetor, apagarPermanentemente: mocks.apagarSetor } } } }))
 vi.mock('../../lib/auth', () => ({ auth: { getUser: () => mocks.user } }))
 vi.mock('../../components/Marca', () => ({ Marca: () => null }))
 vi.mock('../../components/NavegacaoAdmin', () => ({ NavegacaoAdmin: () => null }))
@@ -22,6 +22,7 @@ afterEach(() => {
   mocks.user = null
   mocks.listarPerguntas.mockResolvedValue([])
   mocks.listarSetores.mockResolvedValue([{ id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true }])
+  mocks.listarSetoresPublicos.mockResolvedValue([{ id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true }])
   vi.unstubAllGlobals()
 })
 
@@ -32,7 +33,7 @@ describe('cadastro de pergunta múltipla', () => {
       { id: 2, nome: 'Enfermagem', slug: 'enfermagem', url: '/enfermagem', qrcode: '', ativo: true },
     ]
     mocks.user = { id: 10, nome: 'Gestão', email: 'gestao@fundacao.com', perfil: 'visualizador', permissoes: ['gestao'], setor_id: 1 }
-    mocks.listarSetores.mockResolvedValueOnce(setores)
+    mocks.listarSetoresPublicos.mockResolvedValueOnce(setores)
     mocks.listarPerguntas.mockResolvedValueOnce([
       { id: 1, texto: 'Pergunta da Recepção', tipo: 'texto', geral: false, setor_id: 1, ordem: 1, numero: 1, ativo: true, opcoes: [] },
       { id: 2, texto: 'Pergunta da Enfermagem', tipo: 'texto', geral: false, setor_id: 2, ordem: 1, numero: 1, ativo: true, opcoes: [] },
@@ -48,6 +49,35 @@ describe('cadastro de pergunta múltipla', () => {
     expect(setor).toHaveValue('1')
     expect(setor.querySelectorAll('option')).toHaveLength(1)
     expect(screen.queryByRole('option', { name: 'Enfermagem' })).not.toBeInTheDocument()
+  })
+
+  it.each(['gestao', 'admin_setor'] as const)('%s carrega setores pela rota pública e mantém o setor vinculado', async perfil => {
+    mocks.user = { id: 10, nome: 'Gestão', email: 'gestao@fundacao.com', perfil, permissoes: [], setor_id: 1 }
+    mocks.listarSetoresPublicos.mockResolvedValueOnce([
+      { id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true },
+      { id: 2, nome: 'Enfermagem', slug: 'enfermagem', url: '/enfermagem', qrcode: '', ativo: true },
+    ])
+    renderPage(<PerguntasPage />)
+
+    expect(await screen.findByText('Setor: Recepção')).toBeInTheDocument()
+    expect(mocks.listarSetoresPublicos).toHaveBeenCalledOnce()
+    expect(mocks.listarSetores).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Nova pergunta' }))
+    expect(screen.getByLabelText('Setor')).toHaveValue('1')
+    expect(screen.getByLabelText('Setor').querySelectorAll('option')).toHaveLength(1)
+  })
+
+  it('super_admin carrega setores pela rota administrativa', async () => {
+    mocks.user = { id: 1, nome: 'Admin', email: 'admin@fundacao.com', perfil: 'super_admin', permissoes: [] }
+    mocks.listarSetores.mockResolvedValueOnce([
+      { id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true },
+      { id: 2, nome: 'Inativo', slug: 'inativo', url: '/inativo', qrcode: '', ativo: false },
+    ])
+    renderPage(<PerguntasPage />)
+
+    expect(await screen.findByRole('option', { name: 'Inativo' })).toBeInTheDocument()
+    expect(mocks.listarSetores).toHaveBeenCalledOnce()
+    expect(mocks.listarSetoresPublicos).not.toHaveBeenCalled()
   })
 
   it('envia opções numeradas e não envia ordem', async () => {

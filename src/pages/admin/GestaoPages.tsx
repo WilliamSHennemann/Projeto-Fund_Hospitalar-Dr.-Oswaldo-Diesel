@@ -19,11 +19,16 @@ export function PerguntasPage() {
   const cliente = useQueryClient()
   const navigate = useNavigate()
   const usuario = auth.getUser()
-  const gestao = isGestao(usuario)
+  const gestao = isGestao(usuario) || usuario?.perfil === 'admin_setor'
+  const superAdmin = usuario?.perfil === 'super_admin'
   const setorGestaoId = gestao && usuario && usuario.setor_id !== undefined && Number.isInteger(usuario.setor_id) && usuario.setor_id > 0 ? usuario.setor_id : undefined
   const escopoDisponivel = !gestao || setorGestaoId !== undefined
   const perguntas = useQuery<Pergunta[]>({ queryKey: ['perguntas'], queryFn: api.admin.perguntas.listar, enabled: escopoDisponivel })
-  const setores = useQuery<Setor[]>({ queryKey: ['admin-setores'], queryFn: api.admin.setores.listar, enabled: escopoDisponivel })
+  const setores = useQuery<Setor[]>({
+    queryKey: [superAdmin ? 'admin-setores' : 'setores'],
+    queryFn: superAdmin ? api.admin.setores.listar : api.setores.listar,
+    enabled: escopoDisponivel,
+  })
   const [edicao, setEdicao] = useState<Pergunta | null>(null)
   const [aberto, setAberto] = useState(false)
   const [erro, setErro] = useState('')

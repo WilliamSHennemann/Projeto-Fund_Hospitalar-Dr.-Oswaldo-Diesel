@@ -23,4 +23,4 @@ export interface DashboardFiltro { inicio?: string; fim?: string; setor_id?: num
 export interface Turno { turno: string; total: number; nps: number; media: number | null }
 export interface PesquisaAndamento { id: number; setor_id: number; media_parcial: number | null; ultima_atividade: string; status: string }
 export interface Manifestacao { id: number; tipo: TipoManifestacao; descricao: string; status: StatusManifestacao; setor?: Setor; created_at?: string; data?: string; parecer_interno?: string; pesquisa?: { id: number; nps_nota?: number | null; media_parcial?: number | null }; respostas?: Array<{ pergunta_id: number; valor?: number | null; texto?: string | null }>; paciente?: { nome?: string; telefone?: string; consentimento: boolean } | null }
-export interface TvWall { nps_geral: number; media_geral: number; setores: Array<{ nome: string; slug: string; nps: number }>; elogios_gerais: number; cache_seconds: number }
+export interface TvWall { nps_geral: number; media_geral: number | null; setores: Array<{ nome: string; slug: string; nps: number }>; elogios_gerais: number; cache_seconds: number }
