@@ -75,14 +75,14 @@ describe('exportação do dashboard', () => {
     renderDashboard()
 
     expect(screen.queryByLabelText('Setor')).not.toBeInTheDocument()
-    await screen.findByText('Enfermagem')
+    const setor = await screen.findByRole('button', { name: /Enfermagem/ })
     await waitFor(() => {
       expect(mocks.resumo).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
       expect(mocks.setores).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
       expect(mocks.emAndamento).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
     })
 
-    fireEvent.click(screen.getByText('Enfermagem'))
+    fireEvent.click(setor)
     await waitFor(() => expect(mocks.turnos).toHaveBeenCalledWith(2, expect.objectContaining({ setor_id: 2 })))
 
     fireEvent.click(screen.getByRole('button', { name: 'Exportar Excel' }))

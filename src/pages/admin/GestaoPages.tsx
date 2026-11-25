@@ -89,28 +89,35 @@ export function PerguntasPage() {
   const perguntasReordenaveis = listaExibida.filter(pergunta => !pergunta.geral && pergunta.ativo !== false)
   return <Admin titulo="Perguntas">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <p className="max-w-2xl leading-relaxed text-slate-700">{gestao ? 'Administre as perguntas do setor vinculado à sua conta. A pergunta NPS é fixa e sempre encerra a pesquisa.' : 'Selecione um setor para administrar suas perguntas. A pergunta NPS é fixa e sempre encerra a pesquisa.'}</p>
-      <button disabled={!escopoDisponivel} onClick={() => { setEdicao(null); setAberto(true) }} className="btn-primary disabled:opacity-40">Nova pergunta</button>
+      <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Conteúdo da avaliação</p><p className="mt-1 max-w-2xl leading-relaxed text-slate-700">{gestao ? 'Administre as perguntas do setor vinculado à sua conta. A pergunta NPS é fixa e sempre encerra a pesquisa.' : 'Selecione um setor para administrar suas perguntas. A pergunta NPS é fixa e sempre encerra a pesquisa.'}</p></div>
+      <button disabled={!escopoDisponivel} onClick={() => { setEdicao(null); setAberto(true) }} className="btn-primary gap-2 disabled:opacity-40"><span aria-hidden="true" className="text-lg leading-none">+</span>Nova pergunta</button>
     </div>
-    <div className="mt-5 flex flex-wrap items-end gap-4 rounded-2xl bg-warm-50 p-4">
-      {gestao ? <p className="font-semibold">Setor: {setoresVisiveis?.[0]?.nome ?? 'vinculado à sua conta'}</p> : <label className="block max-w-sm flex-1 font-semibold">Perguntas do setor<select value={setorSelecionado} onChange={e => setSetorSelecionado(e.target.value === 'todos' ? 'todos' : Number(e.target.value))} className="field"><option value="todos">Todos os setores</option>{setoresVisiveis?.map(setor => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}</select></label>}
-      <label className="flex min-h-12 items-center gap-2 rounded-xl px-2 font-semibold text-ink"><input type="checkbox" checked={mostrarDesativadas} onChange={e => setMostrarDesativadas(e.target.checked)} className="size-5 accent-brand-600" /> Mostrar perguntas desativadas</label>
+    <div className="mt-5 flex flex-wrap items-end gap-4 rounded-3xl border border-slate-200/80 bg-gradient-to-r from-support-50 to-white p-4 sm:p-5">
+      {gestao ? <div role="group" aria-label="Setor vinculado" className="min-w-48"><p className="text-xs font-bold uppercase tracking-wider text-support-800">Setor vinculado</p><p className="mt-1 font-bold text-ink">Setor: {setoresVisiveis?.[0]?.nome ?? 'vinculado à sua conta'}</p></div> : <label className="block max-w-sm flex-1 font-semibold">Perguntas do setor<select value={setorSelecionado} onChange={e => setSetorSelecionado(e.target.value === 'todos' ? 'todos' : Number(e.target.value))} className="field"><option value="todos">Todos os setores</option>{setoresVisiveis?.map(setor => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}</select></label>}
+      <label className="flex min-h-12 items-center gap-2 rounded-xl border border-white bg-white/80 px-3 font-semibold text-ink shadow-sm"><input type="checkbox" checked={mostrarDesativadas} onChange={e => setMostrarDesativadas(e.target.checked)} className="size-5 accent-brand-600" /> Mostrar perguntas desativadas</label>
     </div>
     {gestao && !escopoDisponivel && <p role="alert" className="alert-error mt-4">⚠ Seu usuário não está vinculado a um setor. Solicite a correção do vínculo ao super administrador.</p>}
     {erroConsulta && <p role="alert" className="alert-error mt-4">⚠ {axios.isAxiosError(erroConsulta) && erroConsulta.response?.status === 403 ? 'Sua conta não tem permissão para administrar perguntas.' : 'Não foi possível carregar as perguntas.'}</p>}
     {!gestao && setorSelecionado === 'todos' && <p className="mt-3 text-sm text-slate-700">Para alterar a ordem, selecione um setor específico.</p>}
     {erro && <p role="alert" className="alert-error mt-4">⚠ {erro}</p>}
     <div className="mt-5 space-y-3">
-      {perguntas.isLoading && <p className="rounded-xl bg-warm-50 p-4 text-slate-700">Carregando perguntas…</p>}
+      {perguntas.isLoading && <div className="h-24 animate-pulse rounded-3xl bg-warm-50 motion-reduce:animate-none" aria-label="Carregando perguntas" />}
       {listaExibida.map(pergunta => {
         const inativa = pergunta.ativo === false
         const indice = perguntasReordenaveis.findIndex(item => item.id === pergunta.id)
-        return <article key={pergunta.id} className="flex flex-col gap-3 rounded-2xl border border-warm-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-medium text-ink"><strong>{pergunta.geral ? 'NPS fixa: ' : ''}</strong>{pergunta.texto} {inativa && <span className="badge ml-2 bg-slate-100 text-slate-800">Desativada</span>}</p>
-            <p className="mt-1 text-sm text-slate-700">{pergunta.geral ? 'Pergunta geral' : setoresVisiveis?.find(setor => setor.id === pergunta.setor_id)?.nome ?? 'Setor'} · {pergunta.tipo} · ordem {pergunta.ordem}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        const setorNome = pergunta.geral ? 'Pergunta geral' : setoresVisiveis?.find(setor => setor.id === pergunta.setor_id)?.nome ?? 'Setor'
+        const tipoNome = pergunta.tipo === 'rostinho' ? 'Rostinhos' : pergunta.tipo === 'texto' ? 'Texto livre' : pergunta.tipo === 'multipla' ? 'Múltipla escolha' : 'NPS'
+        return <article key={pergunta.id} className={`group overflow-hidden rounded-3xl border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-card ${inativa ? 'border-slate-200 opacity-75' : 'border-slate-200/80 hover:border-brand-200'}`}>
+          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className={`grid size-12 shrink-0 place-items-center rounded-2xl text-sm font-extrabold ${pergunta.geral ? 'bg-support-100 text-support-800' : 'bg-accent-300 text-ink'}`}>{pergunta.geral ? 'NPS' : String(indice + 1).padStart(2, '0')}</span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2"><span className={`badge ${pergunta.geral ? 'bg-support-50 text-support-800' : 'bg-brand-50 text-brand-800'}`}>{pergunta.geral ? 'Pergunta fixa' : 'Pergunta'}</span><span className="badge bg-warm-50 capitalize text-slate-700">{tipoNome}</span>{inativa && <span className="badge bg-slate-100 text-slate-700">Desativada</span>}</div>
+                <h3 className="mt-2 break-words font-bold leading-relaxed text-ink">{pergunta.texto}</h3>
+                <p className="mt-1 text-sm text-slate-600">{setorNome}<span className="mx-1.5 text-slate-400">·</span>Ordem {pergunta.ordem}</p>
+              </div>
+            </div>
+            <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {!inativa && <>
               <button disabled={pergunta.geral || (!gestao && setorSelecionado === 'todos') || indice === 0} onClick={() => mover(indice, -1)} className="btn-secondary min-h-10 px-3 disabled:opacity-40" aria-label="Mover para cima">↑ Mover</button>
               <button disabled={pergunta.geral || (!gestao && setorSelecionado === 'todos') || indice === perguntasReordenaveis.length - 1} onClick={() => mover(indice, 1)} className="btn-secondary min-h-10 px-3 disabled:opacity-40" aria-label="Mover para baixo">↓ Mover</button>
@@ -118,9 +125,11 @@ export function PerguntasPage() {
               <button disabled={pergunta.geral} onClick={() => excluir(pergunta)} className="min-h-10 rounded-xl border border-amber-400 bg-amber-50 px-3 font-semibold text-amber-950 disabled:opacity-40">Desativar</button>
             </>}
             <button disabled={pergunta.geral} onClick={() => apagarPermanentemente(pergunta)} className="min-h-10 rounded-xl border border-red-300 bg-red-50 px-3 font-semibold text-red-900 disabled:opacity-40">Apagar permanentemente</button>
+            </div>
           </div>
         </article>
       })}
+      {!perguntas.isLoading && !listaExibida.length && <div className="rounded-3xl border border-dashed border-slate-300 bg-warm-50/70 px-5 py-10 text-center"><span aria-hidden="true" className="mx-auto grid size-12 place-items-center rounded-2xl bg-white text-2xl text-support-800 shadow-sm">?</span><h3 className="mt-4 font-bold text-ink">Nenhuma pergunta neste filtro</h3><p className="mt-1 text-sm text-slate-600">Escolha outro setor ou crie uma nova pergunta para a avaliação.</p></div>}
     </div>
     {aberto && <FormularioPergunta pergunta={edicao} setores={setoresVisiveis ?? []} setorPreselecionado={gestao ? setorGestaoId : setorSelecionado === 'todos' ? undefined : setorSelecionado} onCancelar={() => { setAberto(false); setEdicao(null) }} onSalvar={salvar} />}
   </Admin>
@@ -151,4 +160,4 @@ function FormularioSetor({ setor, onCancelar, onSalvar }: { setor: Setor | null;
   return <div role="dialog" aria-modal="true" className="fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-ink/60 p-3 sm:p-5"><form onSubmit={e => { e.preventDefault(); if (nome.trim() && slug.trim()) onSalvar({ nome: nome.trim(), slug: slug.trim() }) }} className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-5 shadow-card sm:p-7"><div className="mb-5 h-1.5 w-14 rounded-full bg-brand-600" /><h2 className="text-xl font-bold text-ink">{setor ? 'Editar setor' : 'Novo setor'}</h2><label className="mt-5 block font-semibold">Nome do setor<input required value={nome} onChange={e => atualizarNome(e.target.value)} placeholder="Ex.: Laboratório" className="field" /></label><label className="mt-4 block font-semibold">Endereço da pesquisa<input required pattern="[a-z0-9-]+" value={slug} onChange={e => setSlug(e.target.value.toLowerCase())} placeholder="laboratorio" className="field" /></label><p className="mt-2 break-all text-sm text-slate-700">A pesquisa ficará em: {location.origin}/{slug || 'nome-do-setor'}</p><div className="mt-6 flex flex-col-reverse gap-3 border-t border-warm-100 pt-5 sm:flex-row sm:justify-end"><button type="button" onClick={onCancelar} className="btn-secondary">Cancelar</button><button className="btn-primary">Salvar setor</button></div></form></div>
 }
 
-function Admin({ titulo, children }: { titulo: string; children: React.ReactNode }) { return <><Marca /><main className="mx-auto max-w-6xl p-5 sm:p-6"><p className="text-sm font-bold uppercase tracking-wider text-brand-700">Gestão do sistema</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-ink">{titulo}</h1><NavegacaoAdmin /><section className="mt-6 rounded-2xl border border-warm-100 bg-white p-4 shadow-card sm:p-6">{children}</section></main></> }
+function Admin({ titulo, children }: { titulo: string; children: React.ReactNode }) { return <><Marca /><main className="page-shell"><header className="relative isolate overflow-hidden rounded-[2rem] bg-ink px-6 py-7 text-white shadow-card sm:px-8 sm:py-8"><div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 -z-10 hidden w-1/3 overflow-hidden lg:block"><span className="absolute -right-14 -top-24 size-56 rounded-full bg-accent-400/45" /><span className="absolute -bottom-32 right-12 size-56 rounded-full bg-support-600/40" /></div><div className="relative z-10 flex flex-wrap items-end justify-between gap-5"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-400">Gestão do sistema</p><h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">{titulo}</h1><p className="mt-2 max-w-2xl leading-relaxed text-white/75">Configure os setores e as perguntas usadas nas avaliações dos pacientes.</p></div><span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold text-white">SGEP · FHDOD</span></div></header><NavegacaoAdmin /><section className="mt-6 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-card sm:p-6 lg:p-7">{children}</section></main></> }

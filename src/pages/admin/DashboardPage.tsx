@@ -11,7 +11,8 @@ import { NavegacaoAdmin } from '../../components/NavegacaoAdmin'
 import type { DashboardFiltro, PesquisaAndamento } from '../../types'
 
 function datasDoPeriodo(periodo: string): DashboardFiltro {
-  const fim = new Date(); const inicio = new Date()
+  const fim = new Date()
+  const inicio = new Date()
   if (periodo === '7') inicio.setDate(fim.getDate() - 6)
   else if (periodo === '30') inicio.setDate(fim.getDate() - 29)
   else inicio.setDate(1)
@@ -39,9 +40,20 @@ async function mensagemDaFalhaDeExportacao(erro: unknown): Promise<string> {
 }
 
 export function DashboardPage() {
-  const navigate = useNavigate(); const usuario = auth.getUser(); const gestao = isGestao(usuario); const setorGestaoId = usuario && gestao && usuario.setor_id !== undefined && Number.isInteger(usuario.setor_id) && usuario.setor_id > 0 ? usuario.setor_id : undefined; const escopoDisponivel = !gestao || setorGestaoId !== undefined
-  const [periodo, setPeriodo] = useState('30'); const [setorId, setSetorId] = useState<number | undefined>(); const [setorSelecionado, setSetorSelecionado] = useState<number | null>(null); const [exportando, setExportando] = useState<'excel' | 'pdf' | null>(null); const [erroExportacao, setErroExportacao] = useState('')
-  const filtros = useMemo(() => ({ ...datasDoPeriodo(periodo), ...(gestao ? (setorGestaoId ? { setor_id: setorGestaoId } : {}) : setorId ? { setor_id: setorId } : {}) }), [periodo, setorId, gestao, setorGestaoId])
+  const navigate = useNavigate()
+  const usuario = auth.getUser()
+  const gestao = isGestao(usuario)
+  const setorGestaoId = usuario && gestao && usuario.setor_id !== undefined && Number.isInteger(usuario.setor_id) && usuario.setor_id > 0 ? usuario.setor_id : undefined
+  const escopoDisponivel = !gestao || setorGestaoId !== undefined
+  const [periodo, setPeriodo] = useState('30')
+  const [setorId, setSetorId] = useState<number | undefined>()
+  const [setorSelecionado, setSetorSelecionado] = useState<number | null>(null)
+  const [exportando, setExportando] = useState<'excel' | 'pdf' | null>(null)
+  const [erroExportacao, setErroExportacao] = useState('')
+  const filtros = useMemo(() => ({
+    ...datasDoPeriodo(periodo),
+    ...(gestao ? (setorGestaoId ? { setor_id: setorGestaoId } : {}) : setorId ? { setor_id: setorId } : {}),
+  }), [periodo, setorId, gestao, setorGestaoId])
   const resumo = useQuery({ queryKey: ['resumo', filtros], queryFn: () => api.dashboard.resumo(filtros), enabled: escopoDisponivel })
   const setores = useQuery({ queryKey: ['dashboard-setores', filtros], queryFn: () => api.dashboard.setores(filtros), enabled: escopoDisponivel })
   const andamento = useQuery<PesquisaAndamento[]>({ queryKey: ['andamento', filtros], queryFn: () => api.dashboard.emAndamento(filtros), enabled: escopoDisponivel })
@@ -49,22 +61,117 @@ export function DashboardPage() {
   const errosDashboard = [resumo.error, setores.error, andamento.error, turnos.error].filter(Boolean)
   const erroDashboard = errosDashboard.find(erro => axios.isAxiosError(erro) && erro.response?.status === 403) ?? errosDashboard[0]
   const setoresVisiveis = gestao ? setores.data?.filter(setor => setor.setor_id === setorGestaoId) : setores.data
-  const cards = resumo.data && [['NPS geral', resumo.data.nps_geral], ['Média geral', resumo.data.media_geral ?? '—'], ['Pesquisas', resumo.data.total_pesquisas], ['Parciais', `${Number(resumo.data.percentual_parciais).toFixed(1)}%`]]
+  const setorVinculado = setoresVisiveis?.[0]?.nome
+  const cards = resumo.data ? [
+    { titulo: 'NPS geral', valor: resumo.data.nps_geral, detalhe: 'Índice de recomendação', icone: '↗', cor: 'bg-brand-50 text-brand-800', faixa: 'bg-brand-600' },
+    { titulo: 'Média das avaliações', valor: resumo.data.media_geral ?? '—', detalhe: 'Experiência média', icone: '★', cor: 'bg-support-50 text-support-800', faixa: 'bg-support-600' },
+    { titulo: 'Pesquisas respondidas', valor: resumo.data.total_pesquisas, detalhe: 'No período selecionado', icone: '✓', cor: 'bg-accent-300 text-ink', faixa: 'bg-accent-500' },
+    { titulo: 'Avaliações parciais', valor: `${Number(resumo.data.percentual_parciais).toFixed(1)}%`, detalhe: 'Pesquisas não concluídas', icone: '◷', cor: 'bg-slate-100 text-slate-700', faixa: 'bg-slate-400' },
+  ] : []
   useEffect(() => {
     if (errosDashboard.some(erro => axios.isAxiosError(erro) && erro.response?.status === 401)) {
       navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
     }
   }, [resumo.error, setores.error, andamento.error, turnos.error, navigate])
+
   async function exportar(formato: 'excel' | 'pdf') {
-    setExportando(formato); setErroExportacao('')
+    setExportando(formato)
+    setErroExportacao('')
     try {
       const arquivo = await api.exportacoes[formato](filtros)
       baixarArquivo(arquivo, `resultados-setores-${dataLocalIso()}.${formato === 'excel' ? 'xlsx' : 'pdf'}`)
     } catch (erro) {
-      if (axios.isAxiosError(erro) && erro.response?.status === 401) { navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } }); return }
+      if (axios.isAxiosError(erro) && erro.response?.status === 401) {
+        navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
+        return
+      }
       setErroExportacao(axios.isAxiosError(erro) && erro.response?.status === 403 ? 'Sua conta não tem permissão para exportar estes dados.' : await mensagemDaFalhaDeExportacao(erro))
-    } finally { setExportando(null) }
+    } finally {
+      setExportando(null)
+    }
   }
+
   const podeExportar = pode(usuario, 'exportacoes')
-  return <><Marca /><main className="page-shell"><div><p className="text-sm font-bold uppercase tracking-wider text-brand-700">Visão geral</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-ink">Painel SGEP</h1><p className="mt-1 text-slate-700">Olá, {usuario?.nome}.</p></div><NavegacaoAdmin /><section className="mt-6 flex flex-wrap items-end gap-4 rounded-2xl border border-warm-100 bg-white p-4 shadow-sm"><label className="block font-semibold">Período<select aria-label="Período" value={periodo} onChange={e => setPeriodo(e.target.value)} className="field mt-1 min-h-11"><option value="30">Últimos 30 dias</option><option value="7">Últimos 7 dias</option><option value="mes">Este mês</option></select></label>{!gestao && <label className="block font-semibold">Setor<select aria-label="Setor" value={setorId ?? ''} onChange={e => setSetorId(e.target.value ? Number(e.target.value) : undefined)} className="field mt-1 min-h-11"><option value="">Todos</option>{setores.data?.map(setor => <option key={setor.setor_id} value={setor.setor_id}>{setor.nome}</option>)}</select></label>}{podeExportar && <div role="group" aria-label="Exportar" className="flex flex-wrap items-center gap-2"><span className="mr-1 text-sm font-semibold text-slate-700">Exportar</span><button type="button" disabled={exportando !== null || !escopoDisponivel} aria-busy={exportando === 'excel'} onClick={() => void exportar('excel')} className="btn-secondary min-h-11">{exportando === 'excel' ? 'Gerando…' : 'Exportar Excel'}</button><button type="button" disabled={exportando !== null || !escopoDisponivel} aria-busy={exportando === 'pdf'} onClick={() => void exportar('pdf')} className="btn-secondary min-h-11">{exportando === 'pdf' ? 'Gerando…' : 'Exportar PDF'}</button></div>}</section>{gestao && !escopoDisponivel && <p role="alert" className="alert-error mt-4">⚠ Seu usuário não está vinculado a um setor. Solicite a correção do vínculo ao super administrador.</p>}{erroExportacao && <p role="alert" className="alert-error mt-4">⚠ {erroExportacao}</p>}{erroDashboard && <p role="alert" className="alert-error mt-4">⚠ {axios.isAxiosError(erroDashboard) && erroDashboard.response?.status === 403 ? 'Sua conta não tem permissão para visualizar estes indicadores.' : 'Não foi possível carregar os indicadores.'}</p>}<section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">{cards?.map(([titulo, valor], indice) => <article key={titulo} className="rounded-2xl border border-warm-100 bg-white p-5 shadow-card"><p className="text-sm font-semibold text-slate-700">{titulo}</p><p className={`mt-3 text-3xl font-bold tracking-tight ${indice === 0 ? 'text-emerald-800' : 'text-ink'}`}>{valor}</p></article>)}</section><section className="mt-6 rounded-2xl border border-warm-100 bg-white p-5 shadow-card sm:p-6"><div className="flex flex-wrap items-end justify-between gap-2"><div><p className="text-sm font-bold uppercase tracking-wider text-brand-700">Desempenho</p><h2 className="mt-1 text-xl font-bold text-ink">Indicadores por setor</h2></div><p className="text-xs text-slate-700">NPS: <span className="font-semibold text-rose-900">0–39 precisa de atenção</span> · <span className="font-semibold text-amber-800">40–69 estável</span> · <span className="font-semibold text-emerald-800">70+ positivo</span></p></div><div className="mt-5 space-y-2">{setores.isLoading && <div className="h-20 animate-pulse rounded-xl bg-warm-50 motion-reduce:animate-none" />}{setoresVisiveis?.map(setor => { const status = setor.nps >= 70 ? 'Positivo' : setor.nps >= 40 ? 'Estável' : 'Precisa de atenção'; const cor = setor.nps >= 70 ? 'bg-emerald-700' : setor.nps >= 40 ? 'bg-amber-500' : 'bg-rose-900'; return <button key={setor.setor_id} onClick={() => setSetorSelecionado(setor.setor_id)} className="block w-full rounded-xl p-3 text-left hover:bg-warm-50"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold text-ink">{setor.nome}</span><strong className="text-sm text-ink">NPS {setor.nps} · média {setor.media ?? '—'} <span className="ml-1 text-slate-700">· {status}</span></strong></div><div className="mt-2 h-3 overflow-hidden rounded-full bg-warm-100"><div className={`h-full rounded-full ${cor}`} style={{ width: `${Math.max(0, setor.nps)}%` }} /></div></button> })}{!setores.isLoading && !setoresVisiveis?.length && <p className="rounded-xl bg-warm-50 p-4 text-slate-700">Nenhum indicador disponível para este período.</p>}</div>{setorSelecionado && (!gestao || setorSelecionado === setorGestaoId) && <div className="mt-5 border-t border-warm-100 pt-5"><h3 className="font-bold text-ink">Indicadores por turno</h3>{turnos.isLoading ? <p className="mt-2 text-slate-700">Carregando…</p> : <div className="mt-3 grid gap-3 sm:grid-cols-3">{turnos.data?.map(turno => <article key={turno.turno} className="rounded-xl border border-brand-100 bg-brand-50 p-4"><p className="font-semibold capitalize text-brand-800">{turno.turno}</p><strong className="mt-2 block text-lg text-ink">NPS {turno.nps} · média {turno.media ?? '—'}</strong><span className="text-sm text-slate-700">{turno.total} avaliações</span></article>)}</div>}</div>}</section><section className="mt-6 rounded-2xl border border-warm-100 bg-white p-5 shadow-card sm:p-6"><h2 className="text-xl font-bold text-ink">Avaliações em andamento</h2>{andamento.data?.length ? <ul className="mt-3 divide-y divide-warm-100">{andamento.data.map(item => <li key={item.id} className="py-3 text-slate-700">Pesquisa #{item.id} · setor {item.setor_id} · última atividade {new Date(item.ultima_atividade).toLocaleString('pt-BR')}</li>)}</ul> : <p className="mt-3 rounded-xl bg-warm-50 p-4 text-slate-700">Nenhuma avaliação em andamento.</p>}</section></main></>
+  const escopoAtual = gestao ? setorVinculado ?? 'Setor vinculado' : setorId ? setores.data?.find(setor => setor.setor_id === setorId)?.nome ?? 'Setor selecionado' : 'Todos os setores'
+
+  return <><Marca /><main className="page-shell">
+    <header className="relative isolate overflow-hidden rounded-[2rem] bg-gradient-to-br from-brand-800 via-brand-700 to-brand-600 px-6 py-7 text-white shadow-card sm:px-8 sm:py-9">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 -z-10 hidden w-1/3 overflow-hidden lg:block"><span className="absolute -right-20 -top-28 size-64 rounded-full bg-accent-400/70" /><span className="absolute -bottom-36 right-12 size-60 rounded-full bg-support-600/60" /></div>
+      <div className="flex flex-wrap items-end justify-between gap-6">
+        <div className="max-w-2xl">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em]"><span className="size-2 rounded-full bg-accent-400" />Painel de indicadores</span>
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">Painel SGEP</h1>
+          <p className="mt-2 text-lg font-semibold text-white/90">Olá, {usuario?.nome}.</p>
+          <p className="mt-2 max-w-xl leading-relaxed text-white/80">Acompanhe a experiência dos pacientes e os resultados das avaliações em um só lugar.</p>
+        </div>
+        <div className="min-w-52 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+          <p className="text-xs font-bold uppercase tracking-wider text-white/70">Escopo atual</p>
+          <p className="mt-1 text-lg font-bold">{escopoAtual}</p>
+        </div>
+      </div>
+    </header>
+    <NavegacaoAdmin />
+
+    <section aria-label="Filtros e exportação" className="mt-6 rounded-3xl border border-slate-200/80 bg-white p-5 shadow-card sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Personalize sua visão</p><h2 className="mt-1 text-xl font-bold text-ink">Filtros e exportação</h2></div>
+        <span className="rounded-full bg-accent-300 px-3 py-1.5 text-sm font-bold text-ink">{periodo === '7' ? 'Últimos 7 dias' : periodo === 'mes' ? 'Este mês' : 'Últimos 30 dias'}</span>
+      </div>
+      <div className="mt-4 flex flex-wrap items-end gap-4 border-t border-warm-100 pt-4">
+        <label className="block min-w-48 font-semibold">Período<select aria-label="Período" value={periodo} onChange={e => setPeriodo(e.target.value)} className="field mt-1 min-h-11"><option value="30">Últimos 30 dias</option><option value="7">Últimos 7 dias</option><option value="mes">Este mês</option></select></label>
+        {!gestao && <label className="block min-w-48 font-semibold">Setor<select aria-label="Setor" value={setorId ?? ''} onChange={e => setSetorId(e.target.value ? Number(e.target.value) : undefined)} className="field mt-1 min-h-11"><option value="">Todos</option>{setores.data?.map(setor => <option key={setor.setor_id} value={setor.setor_id}>{setor.nome}</option>)}</select></label>}
+        {podeExportar && <div role="group" aria-label="Exportar" className="flex flex-wrap items-center gap-2"><span className="mr-1 text-sm font-semibold text-slate-700">Exportar</span><button type="button" disabled={exportando !== null || !escopoDisponivel} aria-busy={exportando === 'excel'} onClick={() => void exportar('excel')} className="btn-secondary min-h-11">{exportando === 'excel' ? 'Gerando…' : 'Exportar Excel'}</button><button type="button" disabled={exportando !== null || !escopoDisponivel} aria-busy={exportando === 'pdf'} onClick={() => void exportar('pdf')} className="btn-secondary min-h-11">{exportando === 'pdf' ? 'Gerando…' : 'Exportar PDF'}</button></div>}
+      </div>
+    </section>
+
+    {gestao && !escopoDisponivel && <p role="alert" className="alert-error mt-4">⚠ Seu usuário não está vinculado a um setor. Solicite a correção do vínculo ao super administrador.</p>}
+    {erroExportacao && <p role="alert" className="alert-error mt-4">⚠ {erroExportacao}</p>}
+    {erroDashboard && <p role="alert" className="alert-error mt-4">⚠ {axios.isAxiosError(erroDashboard) && erroDashboard.response?.status === 403 ? 'Sua conta não tem permissão para visualizar estes indicadores.' : 'Não foi possível carregar os indicadores.'}</p>}
+
+    <section aria-labelledby="resumo-heading" className="mt-7">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Em números</p><h2 id="resumo-heading" className="mt-1 text-2xl font-bold tracking-tight text-ink">Resumo do período</h2></div><p className="text-sm text-slate-600">Atualizado conforme os filtros selecionados</p></div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {resumo.isLoading && Array.from({ length: 4 }, (_, indice) => <div key={indice} className="h-36 animate-pulse rounded-3xl bg-white shadow-sm motion-reduce:animate-none" />)}
+        {cards.map(card => <article key={card.titulo} className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-card">
+          <div className={`h-1.5 ${card.faixa}`} />
+          <div className="flex items-start justify-between gap-3 p-5">
+            <div><p className="text-sm font-semibold text-slate-600">{card.titulo}</p><p className="mt-3 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">{card.valor}</p><p className="mt-2 text-xs font-medium text-slate-500">{card.detalhe}</p></div>
+            <span aria-hidden="true" className={`grid size-11 shrink-0 place-items-center rounded-2xl text-xl font-extrabold ${card.cor}`}>{card.icone}</span>
+          </div>
+        </article>)}
+      </div>
+    </section>
+
+    <div className="mt-7 grid items-start gap-5 xl:grid-cols-[1.55fr_.85fr]">
+      <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-card sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Desempenho</p><h2 className="mt-1 text-xl font-bold text-ink">Indicadores por setor</h2></div>
+          <div className="flex flex-wrap gap-2 text-xs font-semibold"><span className="rounded-full bg-rose-50 px-2.5 py-1 text-rose-900">0–39 atenção</span><span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-900">40–69 estável</span><span className="rounded-full bg-accent-300 px-2.5 py-1 text-ink">70+ positivo</span></div>
+        </div>
+        <div className="mt-5 space-y-3">
+          {setores.isLoading && <div className="h-20 animate-pulse rounded-2xl bg-warm-50 motion-reduce:animate-none" />}
+          {setoresVisiveis?.map(setor => {
+            const status = setor.nps >= 70 ? 'Positivo' : setor.nps >= 40 ? 'Estável' : 'Precisa de atenção'
+            const cor = setor.nps >= 70 ? 'bg-accent-500' : setor.nps >= 40 ? 'bg-amber-500' : 'bg-brand-600'
+            const selecionado = setorSelecionado === setor.setor_id
+            return <button key={setor.setor_id} aria-pressed={selecionado} onClick={() => setSetorSelecionado(setor.setor_id)} className={`block w-full rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-soft ${selecionado ? 'border-brand-300 bg-brand-50/60' : 'border-slate-200 bg-white hover:border-brand-200'}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-bold text-ink">{setor.nome}</span><span className="rounded-full bg-warm-50 px-3 py-1 text-sm font-semibold text-ink">NPS {setor.nps} <span className="mx-1 text-slate-400">·</span> média {setor.media ?? '—'}</span></div>
+              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full transition-[width] duration-500 ${cor}`} style={{ width: `${Math.min(100, Math.max(0, setor.nps))}%` }} /></div>
+              <div className="mt-2 flex items-center justify-between text-xs font-medium text-slate-600"><span>{status}</span><span>Ver indicadores por turno <span aria-hidden="true">→</span></span></div>
+            </button>
+          })}
+          {!setores.isLoading && !setoresVisiveis?.length && <p className="rounded-2xl bg-warm-50 p-5 text-slate-700">Nenhum indicador disponível para este período.</p>}
+        </div>
+        {setorSelecionado && (!gestao || setorSelecionado === setorGestaoId) && <div className="mt-6 border-t border-warm-100 pt-5">
+          <div className="flex items-center justify-between gap-3"><h3 className="font-bold text-ink">Indicadores por turno</h3><span className="rounded-full bg-support-50 px-3 py-1 text-xs font-bold text-support-800">{setoresVisiveis?.find(setor => setor.setor_id === setorSelecionado)?.nome}</span></div>
+          {turnos.isLoading ? <p className="mt-3 text-slate-700">Carregando indicadores…</p> : turnos.data?.length ? <div className="mt-3 grid gap-3 sm:grid-cols-3">{turnos.data.map(turno => <article key={turno.turno} className="rounded-2xl border border-support-100 bg-support-50/60 p-4"><p className="font-semibold capitalize text-support-800">{turno.turno}</p><strong className="mt-2 block text-lg text-ink">NPS {turno.nps} · média {turno.media ?? '—'}</strong><span className="text-sm text-slate-600">{turno.total} avaliações</span></article>)}</div> : <p className="mt-3 rounded-xl bg-warm-50 p-4 text-sm text-slate-700">Sem dados por turno para este setor e período.</p>}
+        </div>}
+      </section>
+
+      <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-card sm:p-6">
+        <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Acompanhamento</p><h2 className="mt-1 text-xl font-bold text-ink">Em andamento</h2></div><span className="grid size-11 place-items-center rounded-2xl bg-accent-300 text-lg font-extrabold text-ink">↻</span></div>
+        {andamento.isLoading ? <div className="mt-4 h-20 animate-pulse rounded-2xl bg-warm-50 motion-reduce:animate-none" /> : andamento.data?.length ? <ul className="mt-4 divide-y divide-warm-100">{andamento.data.map(item => <li key={item.id} className="flex items-start justify-between gap-3 py-4 first:pt-0"><div><p className="font-bold text-ink">Pesquisa #{item.id}</p><p className="mt-1 text-sm text-slate-600">Setor {setores.data?.find(setor => setor.setor_id === item.setor_id)?.nome ?? item.setor_id}</p><p className="mt-1 text-xs text-slate-500">Atividade {new Date(item.ultima_atividade).toLocaleString('pt-BR')}</p></div><span className="mt-1 size-2.5 shrink-0 rounded-full bg-accent-500 ring-4 ring-accent-300" aria-label="Em andamento" /></li>)}</ul> : <div className="mt-4 rounded-2xl bg-warm-50 p-5"><span className="grid size-10 place-items-center rounded-xl bg-white text-lg text-support-800 shadow-sm" aria-hidden="true">✓</span><p className="mt-3 font-semibold text-ink">Tudo em dia</p><p className="mt-1 text-sm leading-relaxed text-slate-600">Não há avaliações em andamento neste momento.</p></div>}
+      </section>
+    </div>
+  </main></>
 }
