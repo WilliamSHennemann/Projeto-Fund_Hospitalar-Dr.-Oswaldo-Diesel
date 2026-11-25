@@ -20,7 +20,6 @@ export function PerguntasPage() {
   const navigate = useNavigate()
   const usuario = auth.getUser()
   const gestao = isGestao(usuario) || usuario?.perfil === 'admin_setor'
-  const rotaLogin = gestao ? '/gestor/login' : '/admin/login'
   const superAdmin = usuario?.perfil === 'super_admin'
   const setorGestaoId = gestao && usuario && usuario.setor_id !== undefined && Number.isInteger(usuario.setor_id) && usuario.setor_id > 0 ? usuario.setor_id : undefined
   const escopoDisponivel = !gestao || setorGestaoId !== undefined
@@ -44,14 +43,14 @@ export function PerguntasPage() {
 
   useEffect(() => {
     if ([perguntas.error, setores.error].some(error => axios.isAxiosError(error) && error.response?.status === 401)) {
-      navigate(rotaLogin, { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
+      navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
     }
   }, [perguntas.error, setores.error, navigate])
 
   function mensagemDeErro(error: unknown, padrao: string) {
     if (axios.isAxiosError(error) && error.response?.status === 403) return 'Sua conta não tem permissão para administrar perguntas.'
     if (axios.isAxiosError(error) && error.response?.status === 401) {
-      navigate(rotaLogin, { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
+      navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
       return 'Sua sessão expirou. Entre novamente para continuar.'
     }
     return padrao

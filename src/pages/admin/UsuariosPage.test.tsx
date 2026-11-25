@@ -10,12 +10,13 @@ const mocks = vi.hoisted(() => ({
   listarSetores: vi.fn(),
   listarUsuarios: vi.fn(),
   criarGestor: vi.fn(),
+  excluirGestor: vi.fn(),
 }))
 vi.mock('../../lib/api', () => ({
   api: {
     admin: {
       setores: { listar: mocks.listarSetores },
-      usuarios: { listar: mocks.listarUsuarios, criar: mocks.criarGestor },
+      usuarios: { listar: mocks.listarUsuarios, criar: mocks.criarGestor, excluir: mocks.excluirGestor },
     },
   },
 }))
@@ -40,7 +41,10 @@ beforeEach(() => {
   mocks.criarGestor.mockResolvedValue({ id: 3 })
 })
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 describe('administração de gestores', () => {
   it('cria gestor com perfil gestao e apenas permite escolher setores ativos', async () => {
@@ -65,5 +69,31 @@ describe('administração de gestores', () => {
       setor_id: 1,
     }))
     expect(await screen.findByRole('status')).toHaveTextContent('Gestor criado')
+  })
+
+  it('pede confirmação e remove o acesso do gestor pela API', async () => {
+    const gestor: Usuario = { id: 8, nome: 'Gestor Recepção', email: 'gestor@fundacao.com', perfil: 'gestao', permissoes: [], setor_id: 1 }
+    mocks.listarUsuarios.mockResolvedValueOnce([gestor]).mockResolvedValueOnce([])
+    mocks.excluirGestor.mockResolvedValue(undefined)
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover acesso' }))
+
+    await waitFor(() => expect(mocks.excluirGestor).toHaveBeenCalledWith(8))
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining(gestor.email))
+    expect(await screen.findByRole('status')).toHaveTextContent('acesso de Gestor Recepção foi removido')
+  })
+
+  it('não chama a API se o admin cancelar a remoção', async () => {
+    const gestor: Usuario = { id: 8, nome: 'Gestor Recepção', email: 'gestor@fundacao.com', perfil: 'gestao', permissoes: [], setor_id: 1 }
+    mocks.listarUsuarios.mockResolvedValueOnce([gestor])
+    vi.stubGlobal('confirm', vi.fn(() => false))
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover acesso' }))
+
+    expect(window.confirm).toHaveBeenCalled()
+    expect(mocks.excluirGestor).not.toHaveBeenCalled()
   })
 })
