@@ -20,3 +20,9 @@ export function getApiBaseUrl(value: string | undefined): string {
 
   return url.toString().replace(/\/+$/, '')
 }
+
+export function getApiDocsUrl(value: string | undefined): string {
+  const url = new URL(getApiBaseUrl(value))
+  url.pathname = `${url.pathname.replace(/\/api\/?$/, '').replace(/\/+$/, '')}/docs`
+  return url.toString()
+}

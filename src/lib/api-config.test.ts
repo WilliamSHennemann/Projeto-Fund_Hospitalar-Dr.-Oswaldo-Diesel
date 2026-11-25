@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getApiBaseUrl } from './api-config'
+import { getApiBaseUrl, getApiDocsUrl } from './api-config'
 
 describe('URL base da API', () => {
   it('remove barras finais para evitar caminhos duplicados', () => {
@@ -16,5 +16,9 @@ describe('URL base da API', () => {
 
   it('aceita apenas HTTP ou HTTPS', () => {
     expect(() => getApiBaseUrl('ftp://sgep-api.onrender.com/api')).toThrow('http ou https')
+  })
+
+  it('monta a URL da documentação no host do backend', () => {
+    expect(getApiDocsUrl('https://sgep-api.onrender.com/api')).toBe('https://sgep-api.onrender.com/docs')
   })
 })

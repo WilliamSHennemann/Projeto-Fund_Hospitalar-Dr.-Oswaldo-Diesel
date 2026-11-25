@@ -11,9 +11,14 @@ import { PerguntasPage, SetoresPage } from '../pages/admin/GestaoPages'
 import { ManifestacoesPage } from '../pages/admin/ManifestacoesPage'
 import { TvWallPage } from '../pages/public/TvWallPage'
 import { UsuariosPage } from '../pages/admin/UsuariosPage'
+import { DocsRedirect } from '../pages/public/DocsRedirect'
 
 const queryClient = new QueryClient()
 
 export function App() {
+<<<<<<< HEAD
   return <QueryClientProvider client={queryClient}><BrowserRouter><Routes><Route path="/admin/login" element={<LoginPage />} /><Route path="/admin" element={<Protegido acao="dashboard"><DashboardPage /></Protegido>} /><Route path="/admin/manifestacoes" element={<Protegido acao="manifestacoes"><ManifestacoesPage /></Protegido>} /><Route path="/admin/perguntas" element={<Protegido acao="perguntas"><PerguntasPage /></Protegido>} /><Route path="/admin/setores" element={<Protegido acao="setores"><SetoresPage /></Protegido>} /><Route path="/admin/usuarios" element={<Protegido acao="usuarios"><UsuariosPage /></Protegido>} /><Route path="/tvwall" element={<TvWallPage />} /><Route path="/pesquisa/:slug/pergunta/:n" element={<PerguntaPage />} /><Route path="/pesquisa/:slug/final" element={<FinalPage />} /><Route path="/pesquisa/:slug/obrigado" element={<ObrigadoPage />} /><Route path="/:slug" element={<BoasVindasPage />} /><Route path="*" element={<Navigate to="/admin" replace />} /></Routes></BrowserRouter></QueryClientProvider>
+=======
+  return <QueryClientProvider client={queryClient}><BrowserRouter><Routes><Route path="/admin/login" element={<LoginPage />} /><Route path="/gestor/login" element={<GestorLoginPage />} /><Route path="/admin" element={<Protegido acao="dashboard"><DashboardPage /></Protegido>} /><Route path="/admin/manifestacoes" element={<Protegido acao="manifestacoes"><ManifestacoesPage /></Protegido>} /><Route path="/admin/perguntas" element={<Protegido acao="perguntas"><PerguntasPage /></Protegido>} /><Route path="/admin/setores" element={<Protegido acao="setores"><SetoresPage /></Protegido>} /><Route path="/admin/usuarios" element={<Protegido acao="usuarios"><UsuariosPage /></Protegido>} /><Route path="/tvwall" element={<TvWallPage />} /><Route path="/docs" element={<DocsRedirect />} /><Route path="/pesquisa/:slug/pergunta/:n" element={<PerguntaPage />} /><Route path="/pesquisa/:slug/final" element={<FinalPage />} /><Route path="/pesquisa/:slug/obrigado" element={<ObrigadoPage />} /><Route path="/:slug" element={<BoasVindasPage />} /><Route path="*" element={<Navigate to="/admin" replace />} /></Routes></BrowserRouter></QueryClientProvider>
+>>>>>>> 8a7f00fdc309eb685d436bea9ca8146f13c2c711
 }
