@@ -7,6 +7,7 @@ import { auth } from '../../lib/auth'
 import { isGestao, pode } from '../../lib/permissions'
 import { baixarArquivo } from '../../lib/download'
 import { Marca } from '../../components/Marca'
+import { AlterarSenha } from '../../components/AlterarSenha'
 import { NavegacaoAdmin } from '../../components/NavegacaoAdmin'
 import type { DashboardFiltro, PesquisaAndamento } from '../../types'
 
@@ -104,10 +105,7 @@ export function DashboardPage() {
           <p className="mt-2 text-lg font-semibold text-white/90">Olá, {usuario?.nome}.</p>
           <p className="mt-2 max-w-xl leading-relaxed text-white/80">Acompanhe a experiência dos pacientes e os resultados das avaliações em um só lugar.</p>
         </div>
-        <div className="min-w-52 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
-          <p className="text-xs font-bold uppercase tracking-wider text-white/70">Escopo atual</p>
-          <p className="mt-1 text-lg font-bold">{escopoAtual}</p>
-        </div>
+        <div className="flex flex-col gap-3"><div className="min-w-52 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur"><p className="text-xs font-bold uppercase tracking-wider text-white/70">Escopo atual</p><p className="mt-1 text-lg font-bold">{escopoAtual}</p></div><AlterarSenha /></div>
       </div>
     </header>
     <NavegacaoAdmin />

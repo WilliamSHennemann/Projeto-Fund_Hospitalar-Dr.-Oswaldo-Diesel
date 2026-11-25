@@ -12,12 +12,14 @@ const mocks = vi.hoisted(() => ({
   criarGestor: vi.fn(),
   atualizarGestor: vi.fn(),
   excluirGestor: vi.fn(),
+  redefinirSenha: vi.fn(),
+  reativar: vi.fn(),
 }))
 vi.mock('../../lib/api', () => ({
   api: {
     admin: {
       setores: { listar: mocks.listarSetores },
-      usuarios: { listar: mocks.listarUsuarios, criar: mocks.criarGestor, atualizar: mocks.atualizarGestor, excluir: mocks.excluirGestor },
+      usuarios: { listar: mocks.listarUsuarios, criar: mocks.criarGestor, atualizar: mocks.atualizarGestor, excluir: mocks.excluirGestor, redefinirSenha: mocks.redefinirSenha, reativar: mocks.reativar },
     },
   },
 }))
@@ -83,7 +85,7 @@ describe('administração de gestores', () => {
     fireEvent.change(screen.getByLabelText('Setor'), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Criar gestor' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Já existe uma conta com esse e-mail.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Já existe uma conta com esse e-mail (pode estar na lista de acessos removidos — reative por lá).')
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
@@ -151,7 +153,7 @@ describe('administração de gestores', () => {
     fireEvent.change(within(form).getByLabelText('E-mail do gestor'), { target: { value: 'duplicado@fundacao.com' } })
     fireEvent.click(within(form).getByRole('button', { name: 'Salvar alterações' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Já existe uma conta com esse e-mail.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Já existe uma conta com esse e-mail (pode estar na lista de acessos removidos — reative por lá).')
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
@@ -179,5 +181,40 @@ describe('administração de gestores', () => {
 
     expect(window.confirm).toHaveBeenCalled()
     expect(mocks.excluirGestor).not.toHaveBeenCalled()
+  })
+
+  it('cria uma conta de Ouvidoria sem exigir setor', async () => {
+    renderPage()
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Equipe Ouvidoria' } })
+    fireEvent.change(screen.getByLabelText('E-mail de acesso'), { target: { value: 'ouvidoria2@fundacao.com' } })
+    fireEvent.change(screen.getByLabelText(/Senha inicial/), { target: { value: 'senha-forte-123' } })
+    fireEvent.change(screen.getByLabelText('Perfil'), { target: { value: 'ouvidoria' } })
+    expect(screen.queryByLabelText('Setor')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Criar gestor' }))
+    await waitFor(() => expect(mocks.criarGestor).toHaveBeenCalledWith({ nome: 'Equipe Ouvidoria', email: 'ouvidoria2@fundacao.com', senha: 'senha-forte-123', perfil: 'ouvidoria' }))
+  })
+
+  it('redefine a senha de uma conta com confirmação', async () => {
+    const gestor: Usuario = { id: 8, nome: 'Gestor Recepção', email: 'gestor@fundacao.com', perfil: 'gestao', permissoes: [], setor_id: 1 }
+    mocks.listarUsuarios.mockResolvedValue([gestor])
+    mocks.redefinirSenha.mockResolvedValue({ ok: true })
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Redefinir senha' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Nova senha'), { target: { value: 'senha-nova-123' } })
+    fireEvent.change(within(dialog).getByLabelText('Confirme a nova senha'), { target: { value: 'senha-nova-123' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar nova senha' }))
+    await waitFor(() => expect(mocks.redefinirSenha).toHaveBeenCalledWith(8, 'senha-nova-123'))
+    expect(await screen.findByRole('status')).toHaveTextContent('A senha de Gestor Recepção foi redefinida.')
+  })
+
+  it('reativa um acesso removido', async () => {
+    const usuarioInativo: Usuario = { id: 8, nome: 'Gestor Recepção', email: 'gestor@fundacao.com', perfil: 'gestao', permissoes: [], setor_id: 1, ativo: false }
+    mocks.listarUsuarios.mockResolvedValue([usuarioInativo])
+    mocks.reativar.mockResolvedValue({ ok: true })
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Reativar' }))
+    await waitFor(() => expect(mocks.reativar).toHaveBeenCalledWith(8))
+    expect(await screen.findByRole('status')).toHaveTextContent('O acesso de Gestor Recepção foi reativado.')
   })
 })

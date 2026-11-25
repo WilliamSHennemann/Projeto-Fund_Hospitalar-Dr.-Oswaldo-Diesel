@@ -33,6 +33,8 @@ export function PerguntasPage() {
   const [edicao, setEdicao] = useState<Pergunta | null>(null)
   const [aberto, setAberto] = useState(false)
   const [erro, setErro] = useState('')
+  const [perguntaApagar, setPerguntaApagar] = useState<Pergunta | null>(null)
+  const [confirmacaoApagar, setConfirmacaoApagar] = useState('')
   const [setorSelecionado, setSetorSelecionado] = useState<number | 'todos'>('todos')
   const [mostrarDesativadas, setMostrarDesativadas] = useState(false)
   const setoresVisiveis = gestao ? setores.data?.filter(setor => setor.id === setorGestaoId) : setores.data
@@ -49,6 +51,9 @@ export function PerguntasPage() {
   }, [perguntas.error, setores.error, navigate])
 
   function mensagemDeErro(error: unknown, padrao: string) {
+    const codigo = axios.isAxiosError(error) ? error.response?.data?.codigo : error instanceof Error ? error.message : undefined
+    if (codigo === 'NPS_UNICA') return 'Não é possível desativar a única pergunta de recomendação.'
+    if (codigo === 'ORDER_CONFLICT') return 'Já existe outra pergunta ativa nessa posição. Mova ou desative a outra primeiro.'
     if (axios.isAxiosError(error) && error.response?.status === 403) return 'Sua conta não tem permissão para administrar perguntas.'
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
@@ -76,8 +81,15 @@ export function PerguntasPage() {
   }
 
   async function apagarPermanentemente(pergunta: Pergunta) {
-    if (!confirm(`APAGAR PERMANENTEMENTE a pergunta “${pergunta.texto}”?\n\nTodas as respostas vinculadas a ela serão apagadas. Esta ação não pode ser desfeita.`)) return
-    try { await api.admin.perguntas.apagarPermanentemente(pergunta.id); await cliente.invalidateQueries({ queryKey: ['perguntas'] }) } catch (error) { setErro(mensagemDeErro(error, 'Não foi possível apagar permanentemente a pergunta.')) }
+    if (!superAdmin) return
+    setErro('')
+    try { await api.admin.perguntas.apagarPermanentemente(pergunta.id); await cliente.invalidateQueries({ queryKey: ['perguntas'] }); setPerguntaApagar(null); setConfirmacaoApagar('') } catch (error) { setErro(mensagemDeErro(error, 'Não foi possível apagar permanentemente a pergunta.')) }
+  }
+
+  async function reativar(pergunta: Pergunta) {
+    setErro('')
+    try { await api.admin.perguntas.atualizar(pergunta.id, { ativo: true }); await cliente.invalidateQueries({ queryKey: ['perguntas'] }) }
+    catch (error) { setErro(mensagemDeErro(error, 'Não foi possível reativar a pergunta.')) }
   }
 
   async function mover(indice: number, direcao: -1 | 1) {
@@ -90,7 +102,7 @@ export function PerguntasPage() {
   const perguntasReordenaveis = listaExibida.filter(pergunta => !pergunta.geral && pergunta.ativo !== false)
   return <Admin titulo="Perguntas">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Conteúdo da avaliação</p><p className="mt-1 max-w-2xl leading-relaxed text-slate-700">{gestao ? 'Administre as perguntas do setor vinculado à sua conta. A pergunta NPS é fixa e sempre encerra a pesquisa.' : 'Selecione um setor para administrar suas perguntas. A pergunta NPS é fixa e sempre encerra a pesquisa.'}</p></div>
+      <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Conteúdo da avaliação</p><p className="mt-1 max-w-2xl leading-relaxed text-slate-700">{gestao ? 'Administre as perguntas do setor vinculado à sua conta. A pergunta de recomendação é fixa e sempre encerra a pesquisa.' : 'Selecione um setor para administrar suas perguntas. A pergunta de recomendação é fixa e sempre encerra a pesquisa.'}</p><p className="mt-2 text-sm leading-relaxed text-slate-600"><strong>Desativar</strong> tira a pergunta da pesquisa, mas mantém o histórico. <strong>Apagar</strong> remove também as respostas já dadas.</p></div>
       <button disabled={!escopoDisponivel} onClick={() => { setEdicao(null); setAberto(true) }} className="btn-primary gap-2 disabled:opacity-40"><span aria-hidden="true" className="text-lg leading-none">+</span>Nova pergunta</button>
     </div>
     <div className="mt-5 flex flex-wrap items-end gap-4 rounded-3xl border border-slate-200/80 bg-gradient-to-r from-support-50 to-white p-4 sm:p-5">
@@ -125,7 +137,8 @@ export function PerguntasPage() {
               <button disabled={pergunta.geral} onClick={() => { setEdicao(pergunta); setAberto(true) }} className="btn-secondary min-h-10 px-3 disabled:opacity-40">Editar</button>
               <button disabled={pergunta.geral} onClick={() => excluir(pergunta)} className="min-h-10 rounded-xl border border-amber-400 bg-amber-50 px-3 font-semibold text-amber-950 disabled:opacity-40">Desativar</button>
             </>}
-            <button disabled={pergunta.geral} onClick={() => apagarPermanentemente(pergunta)} className="min-h-10 rounded-xl border border-red-300 bg-red-50 px-3 font-semibold text-red-900 disabled:opacity-40">Apagar permanentemente</button>
+            {inativa && <button onClick={() => void reativar(pergunta)} className="min-h-10 rounded-xl border border-emerald-300 bg-emerald-50 px-3 font-semibold text-emerald-900">Reativar</button>}
+            {superAdmin && <button disabled={pergunta.geral} onClick={() => { setPerguntaApagar(pergunta); setConfirmacaoApagar('') }} className="min-h-10 rounded-xl border border-red-300 bg-red-50 px-3 font-semibold text-red-900 disabled:opacity-40">Apagar permanentemente</button>}
             </div>
           </div>
         </article>
@@ -133,6 +146,7 @@ export function PerguntasPage() {
       {!perguntas.isLoading && !listaExibida.length && <div className="rounded-3xl border border-dashed border-slate-300 bg-warm-50/70 px-5 py-10 text-center"><span aria-hidden="true" className="mx-auto grid size-12 place-items-center rounded-2xl bg-white text-2xl text-support-800 shadow-sm">?</span><h3 className="mt-4 font-bold text-ink">Nenhuma pergunta neste filtro</h3><p className="mt-1 text-sm text-slate-600">Escolha outro setor ou crie uma nova pergunta para a avaliação.</p></div>}
     </div>
     {aberto && <FormularioPergunta pergunta={edicao} setores={setoresVisiveis ?? []} setorPreselecionado={gestao ? setorGestaoId : setorSelecionado === 'todos' ? undefined : setorSelecionado} onCancelar={() => { setAberto(false); setEdicao(null) }} onSalvar={salvar} />}
+    {perguntaApagar && <div role="dialog" aria-modal="true" className="fixed inset-0 z-30 grid place-items-center overflow-y-auto bg-ink/60 p-4"><section className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-card"><h2 className="text-xl font-bold text-ink">Apagar pergunta permanentemente?</h2><p className="mt-3 leading-relaxed text-slate-700">Isso também apagará as respostas já dadas. Para confirmar, digite <strong>APAGAR</strong>.</p><label className="mt-4 block font-semibold">Confirmação<input value={confirmacaoApagar} onChange={event => setConfirmacaoApagar(event.target.value)} className="field mt-1" /></label>{erro && <p role="alert" className="alert-error mt-3">{erro}</p>}<div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button onClick={() => { setPerguntaApagar(null); setConfirmacaoApagar(''); setErro('') }} className="btn-secondary">Cancelar</button><button disabled={confirmacaoApagar !== 'APAGAR'} onClick={() => void apagarPermanentemente(perguntaApagar)} className="min-h-12 rounded-xl bg-red-700 px-5 font-bold text-white disabled:opacity-40">Apagar e remover respostas</button></div></section></div>}
   </Admin>
 }
 

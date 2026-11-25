@@ -36,14 +36,16 @@ No Web Service do backend, configure `CORS_ORIGIN` com a URL pública exata do f
 
 O código do backend não está neste repositório, portanto confirme os nomes das variáveis de banco e JWT no `.env.example` ou no código do backend antes de cadastrar esses valores no Render. O frontend valida `VITE_API_URL` na inicialização quando `VITE_USE_MOCK=false` e mostra uma mensagem clara se a URL estiver ausente ou inválida.
 
-## Rotas para demonstração
+## Rotas
 
+- `/`: página inicial com os setores ativos para iniciar uma avaliação.
 - `/recepcao`, `/triagem`, `/enfermagem`, `/medico`, `/internacao` e `/raio-x`: pesquisa pública.
-- `/admin/login`: acesso da equipe. Mock: `super@fundacao.com` / `super123` ou `ouvidoria@fundacao.com` / `ouvidoria123`.
+- `/admin/login`: acesso compartilhado da equipe. Com `VITE_USE_MOCK=true`, a tela mostra as credenciais de demonstração.
 - `/admin`: dashboard; o menu mostra apenas páginas permitidas para o perfil.
 - `/admin/manifestacoes`: Ouvidoria e detalhes de contato.
 - `/admin/perguntas`, `/admin/setores`: gestão administrativa conforme permissões.
-- `/tvwall`: painel público de indicadores, atualizado conforme `cache_seconds`.
+- `/tvwall`: painel de indicadores autenticado.
+- `/tvwall?chave=...`: painel de TV público quando o backend habilitar a chave.
 
 ## Estrutura
 
@@ -51,4 +53,3 @@ O código do backend não está neste repositório, portanto confirme os nomes d
 - `src/lib/mock/`: dados de desenvolvimento em memória.
 - `src/lib/permissions.ts`: matriz de permissões de interface.
 - `docs/API_CONTRACT.md`: contrato consumido pelo frontend.
-- `BACKEND_TODO.md`: lacunas a implementar no backend.

@@ -103,10 +103,12 @@ describe('cadastro de pergunta múltipla', () => {
   })
 
   it('apaga pergunta permanentemente em ação separada', async () => {
+    mocks.user = { id: 1, nome: 'Admin', email: 'admin@fundacao.com', perfil: 'super_admin', permissoes: [] }
     mocks.listarPerguntas.mockResolvedValueOnce([{ id: 3, texto: 'Pergunta removível', tipo: 'texto', geral: false, setor_id: 1, ordem: 1, numero: 1, ativo: true, opcoes: [] }])
-    vi.stubGlobal('confirm', vi.fn(() => true))
     renderPage(<PerguntasPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'Apagar permanentemente' }))
+    fireEvent.change(screen.getByLabelText('Confirmação'), { target: { value: 'APAGAR' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apagar e remover respostas' }))
     await waitFor(() => expect(mocks.apagarPergunta).toHaveBeenCalledWith(3))
   })
 

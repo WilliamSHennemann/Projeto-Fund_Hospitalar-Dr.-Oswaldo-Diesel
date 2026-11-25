@@ -10,9 +10,9 @@ vi.mock('../../lib/api', () => ({ api: { setores: { fluxo: mocks.fluxo }, pesqui
 import { PerguntaPage } from './PerguntaPage'
 
 const setor = { id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true }
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.clearAllMocks() })
 function pergunta(tipo: Pergunta['tipo'], opcoes: Pergunta['opcoes'] = []): Pergunta { return { id: 10, texto: 'Como foi?', tipo, geral: false, setor_id: 1, ordem: 1, numero: 1, opcoes } }
-function Tela() { const local = useLocation(); return <><Routes><Route path="/pesquisa/:slug/pergunta/:n" element={<PerguntaPage />} /></Routes><output data-testid="rota">{local.pathname}</output></> }
+function Tela() { const local = useLocation(); return <><Routes><Route path="/pesquisa/:slug/pergunta/:n" element={<PerguntaPage />} /><Route path="*" element={null} /></Routes><output data-testid="rota">{local.pathname}</output></> }
 function renderizar(item: Pergunta) { sessionStorage.setItem('sgep.pesquisa', JSON.stringify({ pesquisa_id: 7, token: 'abc', setor })); mocks.fluxo.mockResolvedValue({ setor, fluxo: [item] }); return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/pesquisa/recepcao/pergunta/1']}><Tela /></MemoryRouter></QueryClientProvider>) }
 
 describe('PerguntaPage', () => {
@@ -41,5 +41,22 @@ describe('PerguntaPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Limpeza' }))
     await waitFor(() => expect(mocks.responder).toHaveBeenCalledWith(7, 10, { pergunta_id: 10, valor: 3, opcao_id: 8 }))
     await waitFor(() => expect(screen.getByTestId('rota')).toHaveTextContent('/pesquisa/recepcao/final'))
+  })
+
+  it('não mostra classificações internas e permite pular pergunta opcional sem enviar resposta', async () => {
+    renderizar(pergunta('texto'))
+    expect(await screen.findByText('Como foi?')).toBeInTheDocument()
+    expect(screen.queryByText(/detratores|promotores|neutros/i)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Pular esta pergunta' }))
+    await waitFor(() => expect(screen.getByTestId('rota')).toHaveTextContent('/pesquisa/recepcao/final'))
+    expect(mocks.responder).not.toHaveBeenCalled()
+  })
+
+  it('exibe uma ação real para reenviar quando a resposta falha', async () => {
+    mocks.responder.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({})
+    renderizar(pergunta('rostinho', [{ id: 2, pergunta_id: 10, valor: 2, rotulo: 'Ruim', emoji: '🙁' }]))
+    fireEvent.click(await screen.findByRole('button', { name: 'Ruim' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Tentar novamente' }))
+    await waitFor(() => expect(mocks.responder).toHaveBeenCalledTimes(2))
   })
 })

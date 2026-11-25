@@ -21,6 +21,12 @@ afterEach(() => {
 })
 
 describe('login compartilhado da equipe', () => {
+  it('inicia com as credenciais vazias', () => {
+    render(<MemoryRouter initialEntries={['/admin/login']}><Routes><Route path="/admin/login" element={<LoginPage />} /></Routes></MemoryRouter>)
+    expect(screen.getByLabelText('E-mail')).toHaveValue('')
+    expect(screen.getByLabelText('Senha')).toHaveValue('')
+  })
+
   it.each([gestor, admin])('autentica $perfil pela mesma tela e encaminha ao painel', async usuario => {
     mocks.login.mockResolvedValue({ token: 'token-validado', usuario })
     render(<MemoryRouter initialEntries={['/admin/login']}><Routes><Route path="/admin/login" element={<LoginPage />} /><Route path="/admin" element={<p>Painel SGEP</p>} /></Routes></MemoryRouter>)
@@ -45,5 +51,18 @@ describe('login compartilhado da equipe', () => {
 
     expect(await screen.findByText('Perguntas do setor')).toBeInTheDocument()
     expect(mocks.save).toHaveBeenCalledWith('token-validado', adminSetor)
+  })
+
+  it.each([
+    [401, 'E-mail ou senha inválidos.'],
+    [429, 'Muitas tentativas. Aguarde alguns minutos e tente de novo.'],
+    [503, 'O sistema está iniciando ou indisponível. Aguarde cerca de 1 minuto e tente novamente.'],
+  ])('mostra mensagem adequada quando o login responde %s', async (status, mensagem) => {
+    mocks.login.mockRejectedValue(Object.assign(new Error('falha'), { isAxiosError: true, response: { status } }))
+    render(<MemoryRouter initialEntries={['/admin/login']}><Routes><Route path="/admin/login" element={<LoginPage />} /></Routes></MemoryRouter>)
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'equipe@fundacao.com' } })
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'senha-forte-123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(mensagem)
   })
 })

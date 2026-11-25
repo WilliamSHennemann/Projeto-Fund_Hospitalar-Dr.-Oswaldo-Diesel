@@ -1,3 +1,5 @@
+import { AlterarSenha } from './AlterarSenha'
+
 type Props = {
   titulo: string
   descricao: string
@@ -13,7 +15,7 @@ export function CabecalhoAdmin({ titulo, descricao, eyebrow = 'Gestão do sistem
         <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">{titulo}</h1>
         <p className="mt-2 max-w-2xl leading-relaxed text-white/75">{descricao}</p>
       </div>
-      <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold text-white">SGEP · FHDOD</span>
+      <div className="flex flex-col items-start gap-2 sm:items-end"><span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold text-white">SGEP · FHDOD</span><AlterarSenha /></div>
     </div>
   </header>
 }

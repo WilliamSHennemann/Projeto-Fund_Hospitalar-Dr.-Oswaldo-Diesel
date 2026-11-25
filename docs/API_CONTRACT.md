@@ -13,12 +13,13 @@ Base configurável por `VITE_API_URL` (por exemplo, `http://localhost:3000/api`)
 | POST | `/pesquisas` | Inicia avaliação anônima |
 | PUT | `/pesquisas/:id/respostas/:perguntaId` | Salva resposta idempotente |
 | POST | `/pesquisas/:id/finalizar` | Fecha a pesquisa |
-| POST | `/pesquisas/:id/paciente` | Registra contato com consentimento |
 | POST | `/pesquisas/:id/manifestacoes` | Registra elogio, reclamação ou sugestão |
 
-`POST /pesquisas` envia `setor_id`, `anonimo`, `consentimento` e `data_atendimento` (`YYYY-MM-DD`). `data_atendimento` é persistida pelo backend; a data/hora de envio da avaliação também é registrada automaticamente.
+`POST /pesquisas` envia `setor_id`, `anonimo`, `consentimento` e opcionalmente `data_atendimento` (`YYYY-MM-DD`). A data/hora de envio da avaliação também é registrada automaticamente.
 
-As respostas numéricas enviam `pergunta_id`, `valor` e `opcao_id`. Respostas de texto enviam somente `pergunta_id` e `texto`. Ao responder a última pergunta, o cliente chama `POST /pesquisas/:id/finalizar` e usa o campo `destino` (`ouvidoria` ou `agradecimento`) retornado pela API para decidir a próxima tela.
+As respostas numéricas enviam `pergunta_id`, `valor` e `opcao_id`. Respostas de texto enviam somente `pergunta_id` e `texto`. Após a última pergunta, o cliente finaliza e leva todos os pacientes à tela opcional `/pesquisa/:slug/final`; `destino` orienta apenas o texto e a categoria inicial sugerida.
+
+`POST /pesquisas/:id/manifestacoes` envia `{ tipo, descricao, contato? }` com `X-Pesquisa-Token`. `tipo` aceita `elogio`, `reclamacao` ou `sugestao`. A descrição aceita 0–2000 caracteres e exige pelo menos 5 caracteres quando não há contato. `contato` é opcional e tem `{ nome?, telefone, consentimento: true }`; o telefone aceita 10 ou 11 dígitos após normalização. Resposta 201: `{ id, tipo, status, contato_registrado }`. Os códigos possíveis incluem `VALIDATION_ERROR` (400), `MANIFESTACAO_LIMITE` (409; máximo de 3 por pesquisa) e `RATE_LIMITED` (429).
 
 ## Autenticado
 
@@ -37,13 +38,20 @@ O JWT vai no cabeçalho `Authorization: Bearer <token>`.
 | PATCH | `/admin/perguntas/reordenar` |
 | GET | `/admin/perfis`, `/admin/usuarios` |
 | POST / PATCH / DELETE | `/admin/usuarios`, `/admin/usuarios/:id` |
-| GET | `/tvwall` |
+| PATCH / POST | `/admin/usuarios/:id/senha`, `/admin/usuarios/:id/reativar` |
+| POST | `/auth/senha` |
+| GET | `/tvwall` (autenticado) |
+| GET | `/tvwall/publico?chave=...` (TV com chave) |
 
-O frontend espera criar um gestor enviando `nome`, `email`, `senha` (mínimo de 8 caracteres), `perfil: "gestao"` e `setor_id` para `POST /admin/usuarios`. A resposta deve ser o usuário criado, sem incluir a senha. O frontend também espera remover gestores via `DELETE /admin/usuarios/:id`. O backend deve restringir ambas as operações a `super_admin`, permitir excluir apenas usuários do perfil `gestao`, validar que o setor está ativo e que o e-mail não está cadastrado, e armazenar a senha com hash. A autenticação usa a tela compartilhada e `POST /auth/login`; contas de gestor devem retornar `perfil: "gestao"` e o `setor_id` atribuído.
+`GET /manifestacoes` aceita `status`, `tipo`, `limit` e `offset`; retorna uma lista e o total em `X-Total-Count`. Respostas de pesquisa incluem `pergunta_texto`. A ordem prioriza registros abertos.
+
+`POST /admin/usuarios` aceita `perfil` (`gestao`, `ouvidoria`, `visualizador` ou `admin_setor`). O setor é exigido para `gestao` e `admin_setor`. `GET /admin/usuarios?incluir_inativos=true` inclui acessos removidos, identificados por `ativo`. A senha de outro usuário pode ser redefinida por `PATCH /admin/usuarios/:id/senha` com `{ senha }` (8–72 caracteres); acessos removidos podem ser reativados via `POST /admin/usuarios/:id/reativar`. A própria senha é alterada por `POST /auth/senha` com `{ senha_atual, nova_senha }`.
+
+O frontend espera que operações de criação e gestão de usuários sejam restritas a `super_admin`, que o setor informado esteja ativo e que e-mails sejam únicos, inclusive entre acessos removidos.
 
 `PATCH /admin/usuarios/:id` permite somente a `super_admin` editar os campos `nome`, `email` e `setor_id` do gestor. A requisição é parcial e deve conter somente os campos alterados; a resposta contém o usuário atualizado sem senha/hash, com perfil `gestao`, `setor_id` e permissões. O setor escolhido deve estar ativo e o e-mail não pode estar cadastrado por outro usuário.
 
-`GET /tvwall` exige autenticação. Para usuários com perfil `gestao`, os indicadores retornados são limitados ao setor vinculado à conta.
+`GET /tvwall` exige autenticação. Para usuários com perfil `gestao`, os indicadores retornados são limitados ao setor vinculado à conta. `/tvwall?chave=...` usa a rota pública e não exige sessão da equipe.
 
 ### Exportações
 

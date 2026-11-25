@@ -3,8 +3,8 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
-const mocks = vi.hoisted(() => ({ tvwall: vi.fn(), getUser: vi.fn(), clear: vi.fn() }))
-vi.mock('../../lib/api', () => ({ api: { tvwall: mocks.tvwall } }))
+const mocks = vi.hoisted(() => ({ tvwall: vi.fn(), tvwallPublico: vi.fn(), getUser: vi.fn(), clear: vi.fn() }))
+vi.mock('../../lib/api', () => ({ api: { tvwall: mocks.tvwall, tvwallPublico: mocks.tvwallPublico } }))
 vi.mock('../../lib/auth', () => ({ auth: { getUser: mocks.getUser, clear: mocks.clear } }))
 vi.mock('../../components/Marca', () => ({ Marca: () => null }))
 
@@ -59,5 +59,13 @@ describe('TV Wall', () => {
 
     expect(await screen.findByText('Login compartilhado')).toBeInTheDocument()
     await waitFor(() => expect(mocks.tvwall).not.toHaveBeenCalled())
+  })
+
+  it('usa a rota pública quando a URL contém uma chave', async () => {
+    mocks.tvwallPublico.mockResolvedValue({ nps_geral: 71, media_geral: 4.2, setores: [], elogios_gerais: 3, cache_seconds: 30 })
+    render(<MemoryRouter initialEntries={['/tvwall?chave=visita']}><Routes><Route path="/tvwall" element={<TvWallPage />} /></Routes></MemoryRouter>)
+    expect(await screen.findByText('71')).toBeInTheDocument()
+    expect(mocks.tvwallPublico).toHaveBeenCalledWith('visita')
+    expect(mocks.tvwall).not.toHaveBeenCalled()
   })
 })
