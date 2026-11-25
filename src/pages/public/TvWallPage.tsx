@@ -1,5 +1,44 @@
+import { isAxiosError } from 'axios'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
+import { auth } from '../../lib/auth'
 import type { TvWall } from '../../types'
 import { Marca } from '../../components/Marca'
-export function TvWallPage() { const [dados, setDados] = useState<TvWall | null>(null); useEffect(() => { let ativo = true; let timer: number; const carregar = async () => { const resposta = await api.tvwall(); if (ativo) { setDados(resposta); timer = window.setTimeout(carregar, resposta.cache_seconds * 1000) } }; void carregar(); return () => { ativo = false; clearTimeout(timer) } }, []); return <div className="min-h-screen bg-[#24191B] text-white"><div className="border-b border-white/10 bg-white"><Marca /></div><main className="mx-auto max-w-[1800px] p-6 sm:p-10 lg:p-14"><header className="border-l-4 border-brand-600 pl-5"><p className="text-lg font-semibold text-rose-200 sm:text-2xl">Fundação Hospitalar Dr. Oswaldo Diesel</p><h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-6xl">Experiência do Paciente</h1></header>{dados ? <><section className="mt-10 grid gap-5 md:grid-cols-3"><article className="rounded-3xl border border-white/10 bg-[#342326] p-6 shadow-card sm:p-8"><p className="text-lg font-semibold text-rose-100 sm:text-2xl">NPS geral</p><p className="mt-2 text-6xl font-extrabold tabular-nums text-white sm:text-8xl">{dados.nps_geral}</p></article><article className="rounded-3xl border border-white/10 bg-[#342326] p-6 shadow-card sm:p-8"><p className="text-lg font-semibold text-rose-100 sm:text-2xl">Média geral</p><p className="mt-2 text-6xl font-extrabold tabular-nums text-white sm:text-8xl">{dados.media_geral ?? '—'}</p></article><article className="rounded-3xl border border-white/10 bg-[#342326] p-6 shadow-card sm:p-8"><p className="text-lg font-semibold text-rose-100 sm:text-2xl">Elogios</p><p className="mt-2 text-6xl font-extrabold tabular-nums text-accent-400 sm:text-8xl">{dados.elogios_gerais}</p></article></section><section className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{dados.setores.map(setor => { const label = setor.nps >= 70 ? 'Positivo' : setor.nps >= 40 ? 'Estável' : 'Precisa de atenção'; const cor = setor.nps >= 70 ? 'text-emerald-300' : setor.nps >= 40 ? 'text-amber-200' : 'text-rose-200'; return <article key={setor.slug} className="rounded-2xl border border-white/10 bg-[#342326] p-5 sm:p-6"><div className="flex items-center justify-between gap-3"><p className="text-xl font-semibold sm:text-2xl">{setor.nome}</p><span className="rounded-full border border-white/20 px-3 py-1 text-sm font-semibold text-white">{label}</span></div><p className={`mt-3 text-5xl font-extrabold tabular-nums sm:text-6xl ${cor}`}>NPS {setor.nps}</p></article> })}</section></> : <p className="mt-10 animate-pulse text-2xl text-rose-100 motion-reduce:animate-none">Carregando indicadores…</p>}</main></div> }
+
+export function TvWallPage() {
+  const [dados, setDados] = useState<TvWall | null>(null)
+  const [erro, setErro] = useState('')
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    let ativo = true
+    let timer: number
+    const carregar = async () => {
+      try {
+        const resposta = await api.tvwall()
+        if (ativo) {
+          setDados(resposta)
+          setErro('')
+          timer = window.setTimeout(carregar, resposta.cache_seconds * 1000)
+        }
+      } catch (error) {
+        if (!ativo) return
+        if (isAxiosError(error) && error.response?.status === 401) {
+          auth.clear()
+          navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente.' } })
+          return
+        }
+        setErro('Não foi possível carregar os indicadores. Tente novamente mais tarde.')
+      }
+    }
+
+    void carregar()
+    return () => {
+      ativo = false
+      clearTimeout(timer)
+    }
+  }, [navigate])
+
+  return <div className="min-h-screen bg-[#24191B] text-white"><div className="border-b border-white/10 bg-white"><Marca /></div><main className="mx-auto max-w-[1800px] p-6 sm:p-10 lg:p-14"><header className="border-l-4 border-brand-600 pl-5"><p className="text-lg font-semibold text-rose-200 sm:text-2xl">Fundação Hospitalar Dr. Oswaldo Diesel</p><h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-6xl">Experiência do Paciente</h1></header>{dados ? <><section className="mt-10 grid gap-5 md:grid-cols-3"><article className="rounded-3xl border border-white/10 bg-[#342326] p-6 shadow-card sm:p-8"><p className="text-lg font-semibold text-rose-100 sm:text-2xl">NPS geral</p><p className="mt-2 text-6xl font-extrabold tabular-nums text-white sm:text-8xl">{dados.nps_geral}</p></article><article className="rounded-3xl border border-white/10 bg-[#342326] p-6 shadow-card sm:p-8"><p className="text-lg font-semibold text-rose-100 sm:text-2xl">Média geral</p><p className="mt-2 text-6xl font-extrabold tabular-nums text-white sm:text-8xl">{dados.media_geral ?? '—'}</p></article><article className="rounded-3xl border border-white/10 bg-[#342326] p-6 shadow-card sm:p-8"><p className="text-lg font-semibold text-rose-100 sm:text-2xl">Elogios</p><p className="mt-2 text-6xl font-extrabold tabular-nums text-accent-400 sm:text-8xl">{dados.elogios_gerais}</p></article></section><section className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{dados.setores.map(setor => { const label = setor.nps >= 70 ? 'Positivo' : setor.nps >= 40 ? 'Estável' : 'Precisa de atenção'; const cor = setor.nps >= 70 ? 'text-emerald-300' : setor.nps >= 40 ? 'text-amber-200' : 'text-rose-200'; return <article key={setor.slug} className="rounded-2xl border border-white/10 bg-[#342326] p-5 sm:p-6"><div className="flex items-center justify-between gap-3"><p className="text-xl font-semibold sm:text-2xl">{setor.nome}</p><span className="rounded-full border border-white/20 px-3 py-1 text-sm font-semibold text-white">{label}</span></div><p className={`mt-3 text-5xl font-extrabold tabular-nums sm:text-6xl ${cor}`}>NPS {setor.nps}</p></article> })}</section></> : erro ? <p role="alert" className="mt-10 text-xl text-rose-100">{erro}</p> : <p className="mt-10 animate-pulse text-2xl text-rose-100 motion-reduce:animate-none">Carregando indicadores…</p>}</main></div>
+}

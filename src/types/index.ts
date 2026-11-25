@@ -17,6 +17,7 @@ export interface RespostaEnviada { ok: boolean; proximaPergunta: string | null; 
 export interface ResultadoFinalizacao { destino: 'ouvidoria' | 'agradecimento'; motivo: string }
 export interface Usuario { id: number; nome: string; email: string; perfil: Perfil; permissoes: string[]; setor_id?: number }
 export interface CriarGestor { nome: string; email: string; senha: string; perfil: 'gestao'; setor_id: number }
+export interface AtualizarGestor { nome?: string; email?: string; setor_id?: number }
 export interface LoginResposta { token: string; usuario: Usuario }
 export interface DashboardResumo { nps_geral: number; media_geral: number; total_pesquisas: number; percentual_parciais: number; periodo: string | { inicio: string | null; fim: string | null } }
 export interface DashboardSetor { setor_id: number; nome: string; nps: number; media: number | null }

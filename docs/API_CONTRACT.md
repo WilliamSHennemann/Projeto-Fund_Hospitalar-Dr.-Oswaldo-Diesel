@@ -15,7 +15,6 @@ Base configurável por `VITE_API_URL` (por exemplo, `http://localhost:3000/api`)
 | POST | `/pesquisas/:id/finalizar` | Fecha a pesquisa |
 | POST | `/pesquisas/:id/paciente` | Registra contato com consentimento |
 | POST | `/pesquisas/:id/manifestacoes` | Registra elogio, reclamação ou sugestão |
-| GET | `/tvwall` | Indicadores públicos da TV Wall |
 
 `POST /pesquisas` envia `setor_id`, `anonimo`, `consentimento` e `data_atendimento` (`YYYY-MM-DD`). `data_atendimento` é persistida pelo backend; a data/hora de envio da avaliação também é registrada automaticamente.
 
@@ -37,9 +36,14 @@ O JWT vai no cabeçalho `Authorization: Bearer <token>`.
 | GET / POST / PUT / DELETE | `/admin/perguntas`, `/admin/perguntas/:id` |
 | PATCH | `/admin/perguntas/reordenar` |
 | GET | `/admin/perfis`, `/admin/usuarios` |
-| POST / DELETE (contratos esperados pelo frontend) | `/admin/usuarios`, `/admin/usuarios/:id` |
+| POST / PATCH / DELETE | `/admin/usuarios`, `/admin/usuarios/:id` |
+| GET | `/tvwall` |
 
 O frontend espera criar um gestor enviando `nome`, `email`, `senha` (mínimo de 8 caracteres), `perfil: "gestao"` e `setor_id` para `POST /admin/usuarios`. A resposta deve ser o usuário criado, sem incluir a senha. O frontend também espera remover gestores via `DELETE /admin/usuarios/:id`. O backend deve restringir ambas as operações a `super_admin`, permitir excluir apenas usuários do perfil `gestao`, validar que o setor está ativo e que o e-mail não está cadastrado, e armazenar a senha com hash. A autenticação usa a tela compartilhada e `POST /auth/login`; contas de gestor devem retornar `perfil: "gestao"` e o `setor_id` atribuído.
+
+`PATCH /admin/usuarios/:id` permite somente a `super_admin` editar os campos `nome`, `email` e `setor_id` do gestor. A requisição é parcial e deve conter somente os campos alterados; a resposta contém o usuário atualizado sem senha/hash, com perfil `gestao`, `setor_id` e permissões. O setor escolhido deve estar ativo e o e-mail não pode estar cadastrado por outro usuário.
+
+`GET /tvwall` exige autenticação. Para usuários com perfil `gestao`, os indicadores retornados são limitados ao setor vinculado à conta.
 
 ### Exportações
 
