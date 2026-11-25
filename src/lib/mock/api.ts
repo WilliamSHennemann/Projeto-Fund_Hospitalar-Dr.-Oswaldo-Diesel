@@ -12,7 +12,7 @@ const usuarioSuper: Usuario = { id: 1, nome: 'Administrador', email: 'super@fund
 const usuarioOuvidoria: Usuario = { id: 2, nome: 'Equipe de Ouvidoria', email: 'ouvidoria@fundacao.com', perfil: 'ouvidoria', permissoes: [] }
 const usuariosGestoresMock: Array<{ usuario: Usuario; senha: string }> = [{ usuario: { ...usuarioSuper, ativo: true }, senha: senhaSuperMock }, { usuario: { ...usuarioOuvidoria, ativo: true }, senha: senhaOuvidoriaMock }]
 const manifestacoesPorPesquisa = new Map<number, number>()
-const resumo: DashboardResumo = { nps_geral: 72, media_geral: 4.3, total_pesquisas: 384, percentual_parciais: 8.6, periodo: 'Últimos 30 dias' }
+const resumo: DashboardResumo = { nps_geral: 72, media_geral: 4.3, total_pesquisas: 384, total_concluidas: 350, total_parciais: 34, percentual_parciais: 8.6, periodo: 'Últimos 30 dias' }
 const manifestacoes: Manifestacao[] = [{ id: 1, tipo: 'reclamacao', descricao: 'Esperei mais tempo do que esperava para o atendimento.', status: 'aberta', setor: setoresMock[0], created_at: '2026-10-16', paciente: { nome: 'Maria Silva', telefone: '(11) 99999-9999', consentimento: true } }, { id: 2, tipo: 'elogio', descricao: 'A equipe de enfermagem foi muito atenciosa.', status: 'concluida', setor: setoresMock[2], created_at: '2026-10-15', paciente: null }]
 let perguntasMock: Pergunta[] = fluxoMock(setoresMock[0]).fluxo.map(pergunta => ({ ...pergunta, setor_id: pergunta.geral ? null : 1, ativo: true }))
 
@@ -74,6 +74,8 @@ export const mockApi = {
     criar: async ({ setor_id }: CriarPesquisa): Promise<PesquisaCriada> => { ultimaNotaNps = undefined; return { pesquisa_id: pesquisaSequencia++, token: 'mock-token', setor: setoresMock.find(s => s.id === setor_id)! } },
     responder: async (_id: number, perguntaId: number, data: { valor?: number }) => { if (perguntaId === 99) ultimaNotaNps = data.valor; return { ok: true, proximaPergunta: null, mediaParcial: 4, ultima: perguntaId === 99 } },
     finalizar: async (_id: number): Promise<ResultadoFinalizacao> => ultimaNotaNps !== undefined && ultimaNotaNps <= 6 ? { destino: 'ouvidoria', motivo: 'Gostaríamos de entender melhor sua experiência.' } : { destino: 'agradecimento', motivo: 'Avaliação concluída' },
+    abandonar: async (_id: number) => ({ ok: true as const, status: 'parcial' as const }),
+    progresso: async (_id: number) => ({ status: 'em_andamento', respondidas: [], total: 3 }),
     manifestacao: async (id: number, data: CriarManifestacao): Promise<ResultadoManifestacao> => {
       const quantidade = manifestacoesPorPesquisa.get(id) ?? 0
       if (quantidade >= 3) throw erroApiMock('Você já enviou o limite de mensagens desta pesquisa.', 409, 'MANIFESTACAO_LIMITE')

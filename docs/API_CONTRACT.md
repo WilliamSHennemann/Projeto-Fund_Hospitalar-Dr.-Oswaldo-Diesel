@@ -14,6 +14,8 @@ Base configurável por `VITE_API_URL` (por exemplo, `http://localhost:3000/api`)
 | PUT | `/pesquisas/:id/respostas/:perguntaId` | Salva resposta idempotente |
 | POST | `/pesquisas/:id/finalizar` | Fecha a pesquisa |
 | POST | `/pesquisas/:id/manifestacoes` | Registra elogio, reclamação ou sugestão |
+| POST | `/pesquisas/:id/abandonar` | Guarda a avaliação como parcial |
+| GET | `/pesquisas/:id/progresso` | Lista respostas e quantidade já feita |
 
 `POST /pesquisas` envia `setor_id`, `anonimo`, `consentimento` e opcionalmente `data_atendimento` (`YYYY-MM-DD`). A data/hora de envio da avaliação também é registrada automaticamente.
 
@@ -38,6 +40,10 @@ O JWT vai no cabeçalho `Authorization: Bearer <token>`.
 | PATCH | `/admin/perguntas/reordenar` |
 | GET | `/admin/perfis`, `/admin/usuarios` |
 | POST / PATCH / DELETE | `/admin/usuarios`, `/admin/usuarios/:id` |
+| PATCH | `/admin/usuarios/:id/senha` |
+| POST | `/admin/usuarios/:id/reativar` |
+| POST | `/auth/senha` |
+| GET | `/tvwall/publico?chave=XXXX` |
 | PATCH / POST | `/admin/usuarios/:id/senha`, `/admin/usuarios/:id/reativar` |
 | POST | `/auth/senha` |
 | GET | `/tvwall` (autenticado) |

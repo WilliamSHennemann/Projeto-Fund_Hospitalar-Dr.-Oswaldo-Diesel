@@ -64,10 +64,10 @@ export function DashboardPage() {
   const setoresVisiveis = gestao ? setores.data?.filter(setor => setor.setor_id === setorGestaoId) : setores.data
   const setorVinculado = setoresVisiveis?.[0]?.nome
   const cards = resumo.data ? [
-    { titulo: 'NPS geral', valor: resumo.data.nps_geral, detalhe: 'Índice de recomendação', icone: '↗', cor: 'bg-brand-50 text-brand-800', faixa: 'bg-brand-600' },
+    { titulo: 'NPS geral', valor: resumo.data.nps_geral, detalhe: `Baseado em ${resumo.data.total_concluidas ?? resumo.data.total_pesquisas} respostas. NPS vai de −100 a +100: promotores (notas 9–10) menos detratores (notas 0–6).`, icone: '↗', cor: 'bg-brand-50 text-brand-800', faixa: 'bg-brand-600' },
     { titulo: 'Média das avaliações', valor: resumo.data.media_geral ?? '—', detalhe: 'Experiência média', icone: '★', cor: 'bg-support-50 text-support-800', faixa: 'bg-support-600' },
-    { titulo: 'Pesquisas respondidas', valor: resumo.data.total_pesquisas, detalhe: 'No período selecionado', icone: '✓', cor: 'bg-accent-300 text-ink', faixa: 'bg-accent-500' },
-    { titulo: 'Avaliações parciais', valor: `${Number(resumo.data.percentual_parciais).toFixed(1)}%`, detalhe: 'Pesquisas não concluídas', icone: '◷', cor: 'bg-slate-100 text-slate-700', faixa: 'bg-slate-400' },
+    { titulo: 'Pesquisas completas', valor: resumo.data.total_concluidas ?? resumo.data.total_pesquisas, detalhe: 'Avaliações concluídas no período', icone: '✓', cor: 'bg-accent-300 text-ink', faixa: 'bg-accent-500' },
+    { titulo: 'Pesquisas incompletas', valor: resumo.data.total_parciais ?? 0, detalhe: 'Incompletas são pessoas que saíram antes de terminar; as respostas que deram continuam contando nas médias.', icone: '◷', cor: 'bg-slate-100 text-slate-700', faixa: 'bg-slate-400' },
   ] : []
   useEffect(() => {
     if (errosDashboard.some(erro => axios.isAxiosError(erro) && erro.response?.status === 401)) {

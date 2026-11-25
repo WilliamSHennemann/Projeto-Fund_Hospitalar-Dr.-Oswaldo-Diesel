@@ -10,7 +10,7 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-`VITE_API_URL` define a base da API. Use `VITE_USE_MOCK=true` para trabalhar sem backend; o mock em memória contém setores, fluxo de exemplo, indicadores e os dois logins de teste.
+`VITE_API_URL` define a base da API. Use `VITE_USE_MOCK=true` para trabalhar sem backend; o mock em memória contém setores, fluxo de exemplo, indicadores e logins de demonstração exibidos somente na tela de entrada em modo mock.
 
 ```bash
 npm run build
@@ -46,6 +46,8 @@ O código do backend não está neste repositório, portanto confirme os nomes d
 - `/admin/perguntas`, `/admin/setores`: gestão administrativa conforme permissões.
 - `/tvwall`: painel de indicadores autenticado.
 - `/tvwall?chave=...`: painel de TV público quando o backend habilitar a chave.
+- `/admin/pesquisa`: pesquisa do paciente para a equipe, com prévia, roteiro e compartilhamento.
+- `/{slug}?previa=1`: modo prévia no navegador, sem salvar respostas ou dados de teste.
 
 ## Estrutura
 

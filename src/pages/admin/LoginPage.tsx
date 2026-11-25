@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import { api } from '../../lib/api'
@@ -15,6 +15,16 @@ export function LoginPage() {
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
   const [enviando, setEnviando] = useState(false)
+
+  useEffect(() => {
+    const usuario = typeof auth.getUser === 'function' ? auth.getUser() : null
+    if (!usuario) return
+    const destino = pode(usuario, 'dashboard') ? '/admin'
+      : pode(usuario, 'perguntas') ? '/admin/perguntas'
+      : pode(usuario, 'manifestacoes') ? '/admin/manifestacoes'
+      : null
+    if (destino) navigate(destino, { replace: true })
+  }, [navigate])
 
   async function entrar(event: React.FormEvent) {
     event.preventDefault()

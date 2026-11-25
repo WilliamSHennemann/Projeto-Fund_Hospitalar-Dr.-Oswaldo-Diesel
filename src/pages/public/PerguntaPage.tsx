@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { api } from '../../lib/api'
-import { lerSessao, salvarSessao } from '../../lib/pesquisa-session'
+import { lerSessao, limparSessao, salvarSessao } from '../../lib/pesquisa-session'
 import { Marca } from '../../components/Marca'
 import type { ErroApi } from '../../types'
+import { BarraPublica } from '../../components/BarraPublica'
 
 const fallbackRostinho = [{ valor: 1, rotulo: 'Muito ruim', emoji: '😡' }, { valor: 2, rotulo: 'Ruim', emoji: '🙁' }, { valor: 3, rotulo: 'Neutro', emoji: '😐' }, { valor: 4, rotulo: 'Bom', emoji: '🙂' }, { valor: 5, rotulo: 'Muito bom', emoji: '😍' }]
 const fallbackNps = Array.from({ length: 11 }, (_, valor) => ({ valor, rotulo: String(valor) }))
@@ -14,6 +15,9 @@ export function PerguntaPage() {
   const { slug = '', n = '1' } = useParams()
   const numero = Number(n)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const previa = searchParams.get('previa') === '1'
+  const destinoComPrevia = (rota: string) => previa ? `${rota}?previa=1` : rota
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
   const [sair, setSair] = useState(false)
@@ -28,6 +32,12 @@ export function PerguntaPage() {
   const pergunta = fluxo.data?.fluxo.find(item => item.numero === numero)
 
   async function responder(resposta: { valor?: number; opcao_id?: number; texto?: string }) {
+    if (previa) {
+      const proxima = fluxo.data?.fluxo.find(item => item.numero > numero)
+      if (proxima) navigate(destinoComPrevia(`/pesquisa/${slug}/pergunta/${proxima.numero}`))
+      else navigate(destinoComPrevia(`/pesquisa/${slug}/final`))
+      return
+    }
     const sessao = lerSessao()
     if (!pergunta || !sessao) {
       navigate(`/${slug}`)
@@ -43,12 +53,12 @@ export function PerguntaPage() {
       setRespostaPendente(null)
       const proxima = fluxo.data!.fluxo.find(item => item.numero > numero)
       if (proxima) {
-        navigate(`/pesquisa/${slug}/pergunta/${proxima.numero}`)
+        navigate(destinoComPrevia(`/pesquisa/${slug}/pergunta/${proxima.numero}`))
         return
       }
       const finalizacao = await api.pesquisas.finalizar(sessao.pesquisa_id)
       salvarSessao({ ...atualizado, finalizacao })
-      navigate(`/pesquisa/${slug}/final`)
+      navigate(destinoComPrevia(`/pesquisa/${slug}/final`))
     } catch (error) {
       setRespostaPendente(resposta)
       setErro(isAxiosError<ErroApi>(error) && error.response?.status === 429
@@ -59,20 +69,38 @@ export function PerguntaPage() {
     }
   }
 
+  async function confirmarSaida() {
+    if (!previa) {
+      const sessao = lerSessao()
+      if (sessao) {
+        try { await api.pesquisas.abandonar(sessao.pesquisa_id) } catch { /* sair mesmo assim */ }
+        limparSessao()
+      }
+    }
+    navigate(destinoComPrevia(`/${slug}`))
+  }
+
   async function pular() {
+    if (previa) {
+      const proxima = fluxo.data?.fluxo.find(item => item.numero > numero)
+      if (proxima) navigate(destinoComPrevia(`/pesquisa/${slug}/pergunta/${proxima.numero}`))
+      else navigate(destinoComPrevia(`/pesquisa/${slug}/final`))
+      return
+    }
+
     const proxima = fluxo.data?.fluxo.find(item => item.numero > numero)
     if (proxima) {
-      navigate(`/pesquisa/${slug}/pergunta/${proxima.numero}`)
+      navigate(destinoComPrevia(`/pesquisa/${slug}/pergunta/${proxima.numero}`))
       return
     }
     const sessao = lerSessao()
-    if (!sessao) { navigate(`/${slug}`); return }
+    if (!sessao) { navigate(destinoComPrevia(`/${slug}`)); return }
     setEnviando(true)
     setErro('')
     try {
       const finalizacao = await api.pesquisas.finalizar(sessao.pesquisa_id)
       salvarSessao({ ...sessao, finalizacao })
-      navigate(`/pesquisa/${slug}/final`)
+      navigate(destinoComPrevia(`/pesquisa/${slug}/final`))
     } catch (error) {
       setErro(isAxiosError<ErroApi>(error) && error.response?.status === 429
         ? 'Muitas pessoas estão respondendo agora. Aguarde um instante e tente de novo.'
@@ -90,7 +118,7 @@ export function PerguntaPage() {
   const progresso = Math.round((numero / totalPerguntas) * 100)
   const nomeSetor = fluxo.data?.setor.nome ?? 'Avaliação'
 
-  return <><Marca /><main className="public-shell max-w-3xl sm:pt-8">
+  return <><BarraPublica previa={previa} /><Marca /><main className="public-shell max-w-3xl sm:pt-8">
     <header className="relative isolate overflow-hidden rounded-[2rem] bg-brand-700 px-5 py-5 text-white shadow-card sm:px-7 sm:py-6">
       <div className="relative z-10 flex items-start justify-between gap-4">
         <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-300">Pesquisa de satisfação</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{nomeSetor}</h2><p className="mt-1 text-sm font-medium text-white/75">Sua opinião ajuda a aprimorar o cuidado.</p></div>
@@ -121,12 +149,12 @@ export function PerguntaPage() {
       </> : pergunta.tipo === 'multipla' ? <div className="mt-7 grid gap-3 text-left">{opcoes.map(opcao => <button disabled={enviando} key={opcao.id} aria-label={opcao.rotulo} onClick={() => void responder({ valor: opcao.valor, opcao_id: opcao.id })} className="group flex min-h-16 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left font-semibold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:bg-brand-50 hover:shadow-soft disabled:opacity-50"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent-300 text-xl">{opcao.emoji ?? '›'}</span><span className="flex-1">{opcao.rotulo}</span><span aria-hidden="true" className="text-xl text-support-600 transition-transform group-hover:translate-x-1">→</span></button>)}</div> : <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-5">{opcoes.map(opcao => <button disabled={enviando} key={opcao.id} aria-label={opcao.rotulo} onClick={() => void responder({ valor: opcao.valor, opcao_id: opcao.id })} className="group flex min-h-32 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:-translate-y-1 hover:border-brand-300 hover:bg-brand-50 hover:shadow-soft active:scale-[.98] disabled:translate-y-0 disabled:opacity-50"><span className="block text-5xl transition-transform group-hover:scale-110" aria-hidden="true">{opcao.emoji}</span><span className="mt-2 text-center text-base font-semibold text-ink">{opcao.rotulo}</span></button>)}</div>}
 
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-warm-100 pt-4">
-        {numero > 1 ? <button disabled={enviando} onClick={() => { const anteriores = fluxo.data!.fluxo.filter(item => item.numero < numero); navigate(`/pesquisa/${slug}/pergunta/${anteriores[anteriores.length - 1]?.numero ?? numero - 1}`) }} className="btn-secondary min-h-12">← Voltar</button> : <span className="text-base font-medium text-slate-600">Sua avaliação é anônima</span>}
+        {numero > 1 ? <button disabled={enviando} onClick={() => { const anteriores = fluxo.data!.fluxo.filter(item => item.numero < numero); navigate(destinoComPrevia(`/pesquisa/${slug}/pergunta/${anteriores[anteriores.length - 1]?.numero ?? numero - 1}`)) }} className="btn-secondary min-h-12">← Voltar</button> : <span className="text-base font-medium text-slate-600">Sua avaliação é anônima</span>}
         {!pergunta.obrigatoria && pergunta.tipo !== 'nps' && <button disabled={enviando} onClick={() => void pular()} className="btn-secondary min-h-12">Pular esta pergunta</button>}
         <button onClick={() => setSair(true)} className="min-h-12 rounded-xl px-3 text-base font-semibold text-slate-600 underline underline-offset-4 hover:text-brand-800">Sair da avaliação</button>
       </div>
     </section>
   </main>
-  {sair && <div role="dialog" aria-modal="true" className="fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-ink/60 p-4"><div className="w-full max-w-md rounded-3xl border border-white bg-white p-6 shadow-card"><div className="mb-5 h-1.5 w-20 overflow-hidden rounded-full bg-gradient-to-r from-brand-600 via-accent-400 to-support-600" /><h2 className="text-xl font-bold text-ink">Deseja sair?</h2><p className="mt-3 leading-relaxed text-slate-700">Tem certeza que deseja sair? Sua avaliação ainda não foi concluída.</p><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row"><button onClick={() => setSair(false)} className="btn-secondary flex-1">Continuar avaliando</button><button onClick={() => navigate(`/${slug}`)} className="btn-primary flex-1 bg-ink hover:bg-slate-800">Sair</button></div></div></div>}
+  {sair && <div role="dialog" aria-modal="true" className="fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-ink/60 p-4"><div className="w-full max-w-md rounded-3xl border border-white bg-white p-6 shadow-card"><div className="mb-5 h-1.5 w-20 overflow-hidden rounded-full bg-gradient-to-r from-brand-600 via-accent-400 to-support-600" /><h2 className="text-xl font-bold text-ink">Sair da avaliação</h2><p className="mt-3 leading-relaxed text-slate-700">Suas respostas até aqui serão guardadas. Deseja sair?</p><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row"><button onClick={() => setSair(false)} className="btn-secondary flex-1">Continuar avaliando</button><button onClick={() => void confirmarSaida()} className="btn-primary flex-1 bg-ink hover:bg-slate-800">Sair</button></div></div></div>}
   </>
 }

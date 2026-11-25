@@ -1,10 +1,11 @@
 import { isAxiosError } from 'axios'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { lerSessao, salvarSessao } from '../../lib/pesquisa-session'
 import type { ErroApi, ErrosCamposManifestacao, TipoManifestacao } from '../../types'
 import { Marca } from '../../components/Marca'
+import { BarraPublica } from '../../components/BarraPublica'
 
 const telefoneFormatado = (valor: string) => {
   const digitos = valor.replace(/\D/g, '').slice(0, 11)
@@ -16,6 +17,9 @@ const telefoneFormatado = (valor: string) => {
 
 export function FinalPage() {
   const { slug = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const previa = searchParams.get('previa') === '1'
+  const rotaObrigado = `/pesquisa/${slug}/obrigado${previa ? '?previa=1' : ''}`
   const navigate = useNavigate()
   const sessao = lerSessao()
   const [pronto, setPronto] = useState(Boolean(sessao?.finalizacao))
@@ -31,6 +35,7 @@ export function FinalPage() {
   const [telefone, setTelefone] = useState('')
 
   useEffect(() => {
+    if (previa) { setPronto(true); return }
     if (!sessao) {
       navigate(`/${slug}`, { replace: true })
       return
@@ -48,6 +53,16 @@ export function FinalPage() {
       : 'Que bom! Quer deixar um elogio?'
 
   async function enviar() {
+    if (previa) {
+      setErro('')
+      setErroDescricao('')
+      setErroTelefone('')
+      if (!querContato && descricao.trim().length < 5) { setErroDescricao('Escreva pelo menos 5 caracteres ou marque a opção para receber contato.'); return }
+      const digitos = telefone.replace(/\D/g, '')
+      if (querContato && (digitos.length < 10 || digitos.length > 11)) { setErroTelefone('Digite o telefone com DDD, por exemplo (11) 91234-5678.'); return }
+      navigate(rotaObrigado, { state: { simulacao: true } })
+      return
+    }
     const sessaoAtual = lerSessao()
     setErro('')
     setErroDescricao('')
@@ -74,11 +89,11 @@ export function FinalPage() {
       })
       sessaoAtual.contato_registrado = resultado.contato_registrado
       salvarSessao(sessaoAtual)
-      navigate(`/pesquisa/${slug}/obrigado`)
+      navigate(rotaObrigado)
     } catch (error) {
       if (isAxiosError<ErroApi>(error) && error.response?.status === 409 && error.response.data?.codigo === 'MANIFESTACAO_LIMITE') {
         setErro('Você já enviou sua mensagem. Obrigado!')
-        navigate(`/pesquisa/${slug}/obrigado`, { state: { mensagem: 'Você já enviou sua mensagem. Obrigado!' } })
+        navigate(rotaObrigado, { state: { mensagem: 'Você já enviou sua mensagem. Obrigado!' } })
         return
       }
       if (isAxiosError<ErroApi>(error) && error.response?.data?.codigo === 'VALIDATION_ERROR') {
@@ -97,7 +112,7 @@ export function FinalPage() {
   if (!pronto && !erro) return <><Marca /><main className="public-shell"><div className="h-72 animate-pulse rounded-3xl bg-white shadow-card motion-reduce:animate-none" aria-label="Carregando" /></main></>
   if (erro === 'Não foi possível concluir sua avaliação. Tente novamente.') return <><Marca /><main className="public-shell"><section className="card"><p role="alert" className="alert-error">{erro}</p><button className="btn-primary mt-5 w-full" onClick={() => { setErro(''); setPronto(false); setTentativaFinalizacao(value => value + 1) }}>Tentar novamente</button></section></main></>
 
-  return <><Marca /><main className="public-shell sm:pt-10"><section className="rounded-3xl bg-white p-5 shadow-card sm:p-8">
+  return <><BarraPublica previa={previa} /><Marca /><main className="public-shell sm:pt-10"><section className="rounded-3xl bg-white p-5 shadow-card sm:p-8">
     <p className="text-sm font-bold uppercase tracking-wider text-brand-700">Sua opinião</p>
     <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{mensagem}</h1>
     <fieldset className="mt-6"><legend className="text-base font-bold text-ink">Escolha uma opção</legend><div className="mt-3 grid gap-3 sm:grid-cols-3">{([
@@ -117,6 +132,6 @@ export function FinalPage() {
     </div>}
     {erro && <p role="alert" className="alert-error mt-4">{erro}</p>}
     <button disabled={enviando || !pronto} onClick={() => void enviar()} className="btn-primary mt-6 w-full text-lg">{enviando ? 'Enviando…' : 'Enviar'}</button>
-    <button disabled={enviando} onClick={() => navigate(`/pesquisa/${slug}/obrigado`)} className="btn-secondary mt-3 min-h-12 w-full">Não quero enviar, terminar</button>
+    <button disabled={enviando} onClick={() => navigate(rotaObrigado)} className="btn-secondary mt-3 min-h-12 w-full">Não quero enviar, terminar</button>
   </section></main></>
 }

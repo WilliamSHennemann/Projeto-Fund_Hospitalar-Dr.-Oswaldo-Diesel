@@ -14,6 +14,7 @@ import { ManifestacoesPage } from '../pages/admin/ManifestacoesPage'
 import { TvWallPage } from '../pages/public/TvWallPage'
 import { UsuariosPage } from '../pages/admin/UsuariosPage'
 import { DocsRedirect } from '../pages/public/DocsRedirect'
+import { PesquisaPacientePage } from '../pages/admin/PesquisaPacientePage'
 
 const queryClient = new QueryClient()
 
@@ -33,5 +34,5 @@ function TvWallRoute() {
 }
 
 export function App() {
-  return <QueryClientProvider client={queryClient}><BrowserRouter><SessionExpiredHandler /><Routes><Route path="/" element={<HomePage />} /><Route path="/admin/login" element={<LoginPage />} /><Route path="/admin" element={<Protegido acao="dashboard"><DashboardPage /></Protegido>} /><Route path="/admin/manifestacoes" element={<Protegido acao="manifestacoes"><ManifestacoesPage /></Protegido>} /><Route path="/admin/perguntas" element={<Protegido acao="perguntas"><PerguntasPage /></Protegido>} /><Route path="/admin/setores" element={<Protegido acao="setores"><SetoresPage /></Protegido>} /><Route path="/admin/usuarios" element={<Protegido acao="usuarios"><UsuariosPage /></Protegido>} /><Route path="/tvwall" element={<TvWallRoute />} /><Route path="/docs" element={<DocsRedirect />} /><Route path="/pesquisa/:slug/pergunta/:n" element={<PerguntaPage />} /><Route path="/pesquisa/:slug/final" element={<FinalPage />} /><Route path="/pesquisa/:slug/obrigado" element={<ObrigadoPage />} /><Route path="/:slug" element={<BoasVindasPage />} /><Route path="*" element={<NotFoundPage />} /></Routes></BrowserRouter></QueryClientProvider>
+  return <QueryClientProvider client={queryClient}><BrowserRouter><SessionExpiredHandler /><Routes><Route path="/" element={<HomePage />} /><Route path="/admin/login" element={<LoginPage />} /><Route path="/admin" element={<Protegido acao="dashboard"><DashboardPage /></Protegido>} /><Route path="/admin/pesquisa" element={<Protegido acao="pesquisa"><PesquisaPacientePage /></Protegido>} /><Route path="/admin/manifestacoes" element={<Protegido acao="manifestacoes"><ManifestacoesPage /></Protegido>} /><Route path="/admin/perguntas" element={<Protegido acao="perguntas"><PerguntasPage /></Protegido>} /><Route path="/admin/setores" element={<Protegido acao="setores"><SetoresPage /></Protegido>} /><Route path="/admin/usuarios" element={<Protegido acao="usuarios"><UsuariosPage /></Protegido>} /><Route path="/tvwall" element={<TvWallRoute />} /><Route path="/docs" element={<DocsRedirect />} /><Route path="/pesquisa/:slug/pergunta/:n" element={<PerguntaPage />} /><Route path="/pesquisa/:slug/final" element={<FinalPage />} /><Route path="/pesquisa/:slug/obrigado" element={<ObrigadoPage />} /><Route path="/:slug" element={<BoasVindasPage />} /><Route path="*" element={<NotFoundPage />} /></Routes></BrowserRouter></QueryClientProvider>
 }
