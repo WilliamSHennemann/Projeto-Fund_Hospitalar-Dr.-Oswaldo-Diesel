@@ -22,7 +22,6 @@ export interface LoginResposta { token: string; usuario: Usuario }
 export interface DashboardSetor { setor_id: number; nome: string; nps: number; media: number | null }
 export interface DashboardFiltro { inicio?: string; fim?: string; setor_id?: number }
 export interface Turno { turno: string; total: number; nps: number; media: number | null }
-export interface PesquisaAndamento { id: number; setor_id: number; media_parcial: number | null; ultima_atividade: string; status: string }
 export interface CriarManifestacao { tipo: TipoManifestacao; descricao: string; contato?: { nome?: string; telefone: string; consentimento: true } }
 export interface Manifestacao { id: number; tipo: TipoManifestacao; descricao: string; status: StatusManifestacao; setor?: Setor; created_at?: string; data?: string; parecer_interno?: string; pesquisa?: { id: number; nps_nota?: number | null; media_parcial?: number | null }; respostas?: Array<{ pergunta_id: number; pergunta_texto?: string; valor?: number | null; texto?: string | null }>; paciente?: { nome?: string; telefone?: string; consentimento: boolean } | null; canal_contato?: string }
 export interface ListaManifestacoes { items: Manifestacao[]; total: number }

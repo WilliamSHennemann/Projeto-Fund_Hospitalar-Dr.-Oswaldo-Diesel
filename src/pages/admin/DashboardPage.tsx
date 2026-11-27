@@ -9,7 +9,7 @@ import { baixarArquivo } from '../../lib/download'
 import { Marca } from '../../components/Marca'
 import { AlterarSenha } from '../../components/AlterarSenha'
 import { NavegacaoAdmin } from '../../components/NavegacaoAdmin'
-import type { DashboardFiltro, PesquisaAndamento } from '../../types'
+import type { DashboardFiltro } from '../../types'
 
 function datasDoPeriodo(periodo: string): DashboardFiltro {
   const fim = new Date()
@@ -56,9 +56,8 @@ export function DashboardPage() {
     ...(gestao ? (setorGestaoId ? { setor_id: setorGestaoId } : {}) : setorId ? { setor_id: setorId } : {}),
   }), [periodo, setorId, gestao, setorGestaoId])
   const setores = useQuery({ queryKey: ['dashboard-setores', filtros], queryFn: () => api.dashboard.setores(filtros), enabled: escopoDisponivel })
-  const andamento = useQuery<PesquisaAndamento[]>({ queryKey: ['andamento', filtros], queryFn: () => api.dashboard.emAndamento(filtros), enabled: escopoDisponivel })
   const turnos = useQuery({ queryKey: ['turnos', setorSelecionado, filtros], queryFn: () => api.dashboard.turnos(setorSelecionado!, filtros), enabled: setorSelecionado !== null && escopoDisponivel })
-  const errosDashboard = [setores.error, andamento.error, turnos.error].filter(Boolean)
+  const errosDashboard = [setores.error, turnos.error].filter(Boolean)
   const erroDashboard = errosDashboard.find(erro => axios.isAxiosError(erro) && erro.response?.status === 403) ?? errosDashboard[0]
   const setoresVisiveis = gestao ? setores.data?.filter(setor => setor.setor_id === setorGestaoId) : setores.data
   const setorVinculado = setoresVisiveis?.[0]?.nome
@@ -66,7 +65,7 @@ export function DashboardPage() {
     if (errosDashboard.some(erro => axios.isAxiosError(erro) && erro.response?.status === 401)) {
       navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
     }
-  }, [setores.error, andamento.error, turnos.error, navigate])
+  }, [setores.error, turnos.error, navigate])
 
   async function exportar(formato: 'excel' | 'pdf') {
     setExportando(formato)
@@ -119,7 +118,7 @@ export function DashboardPage() {
     {erroExportacao && <p role="alert" className="alert-error mt-4">⚠ {erroExportacao}</p>}
     {erroDashboard && <p role="alert" className="alert-error mt-4">⚠ {axios.isAxiosError(erroDashboard) && erroDashboard.response?.status === 403 ? 'Sua conta não tem permissão para visualizar estes indicadores.' : 'Não foi possível carregar os indicadores.'}</p>}
 
-    <div className="mt-7 grid items-start gap-5 xl:grid-cols-[1.55fr_.85fr]">
+    <div className="mt-7">
       <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-card sm:p-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Desempenho</p><h2 className="mt-1 text-xl font-bold text-ink">Indicadores por setor</h2></div>
@@ -145,10 +144,6 @@ export function DashboardPage() {
         </div>}
       </section>
 
-      <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-card sm:p-6">
-        <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Acompanhamento</p><h2 className="mt-1 text-xl font-bold text-ink">Em andamento</h2></div><span className="grid size-11 place-items-center rounded-2xl bg-accent-300 text-lg font-extrabold text-ink">↻</span></div>
-        {andamento.isLoading ? <div className="mt-4 h-20 animate-pulse rounded-2xl bg-warm-50 motion-reduce:animate-none" /> : andamento.data?.length ? <ul className="mt-4 divide-y divide-warm-100">{andamento.data.map(item => <li key={item.id} className="flex items-start justify-between gap-3 py-4 first:pt-0"><div><p className="font-bold text-ink">Pesquisa #{item.id}</p><p className="mt-1 text-sm text-slate-600">Setor {setores.data?.find(setor => setor.setor_id === item.setor_id)?.nome ?? item.setor_id}</p><p className="mt-1 text-xs text-slate-500">Atividade {new Date(item.ultima_atividade).toLocaleString('pt-BR')}</p></div><span className="mt-1 size-2.5 shrink-0 rounded-full bg-accent-500 ring-4 ring-accent-300" aria-label="Em andamento" /></li>)}</ul> : <div className="mt-4 rounded-2xl bg-warm-50 p-5"><span className="grid size-10 place-items-center rounded-xl bg-white text-lg text-support-800 shadow-sm" aria-hidden="true">✓</span><p className="mt-3 font-semibold text-ink">Tudo em dia</p><p className="mt-1 text-sm leading-relaxed text-slate-600">Não há avaliações em andamento neste momento.</p></div>}
-      </section>
     </div>
   </main></>
 }

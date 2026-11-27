@@ -11,12 +11,11 @@ const mocks = vi.hoisted(() => ({
   pdf: vi.fn().mockResolvedValue(new Blob(['pdf'])),
   setores: vi.fn().mockResolvedValue([{ setor_id: 2, nome: 'Enfermagem', nps: 75, media: 4.5 }]),
   turnos: vi.fn().mockResolvedValue([]),
-  emAndamento: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('../../lib/api', () => ({
   api: {
-    dashboard: { setores: mocks.setores, turnos: mocks.turnos, emAndamento: mocks.emAndamento },
+    dashboard: { setores: mocks.setores, turnos: mocks.turnos },
     exportacoes: { excel: mocks.excel, pdf: mocks.pdf },
   },
 }))
@@ -41,13 +40,16 @@ afterEach(() => {
   mocks.pdf.mockResolvedValue(new Blob(['pdf']))
 })
 
-describe('exportação do dashboard', () => {
-  it('não mostra mais o resumo do período', async () => {
+describe('painel admin', () => {
+  it('não mostra o resumo do período nem o acompanhamento', async () => {
     mocks.user = usuario('super_admin')
     renderDashboard()
 
     await screen.findByRole('button', { name: /Enfermagem/ })
     expect(screen.queryByRole('heading', { name: 'Resumo do período' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Acompanhamento')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Em andamento' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('mostra os dois botões a quem tem permissão e oculta para visualizador', async () => {
@@ -85,7 +87,6 @@ describe('exportação do dashboard', () => {
     const setor = await screen.findByRole('button', { name: /Enfermagem/ })
     await waitFor(() => {
       expect(mocks.setores).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
-      expect(mocks.emAndamento).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
     })
 
     fireEvent.click(setor)
@@ -101,7 +102,6 @@ describe('exportação do dashboard', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('não está vinculado a um setor')
     expect(mocks.setores).not.toHaveBeenCalled()
-    expect(mocks.emAndamento).not.toHaveBeenCalled()
   })
 
   it('mostra erro e reabilita o botão quando a exportação falha', async () => {
