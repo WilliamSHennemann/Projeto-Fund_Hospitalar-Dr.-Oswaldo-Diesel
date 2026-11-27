@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   user: null as Usuario | null,
   excel: vi.fn().mockResolvedValue(new Blob(['excel'])),
   pdf: vi.fn().mockResolvedValue(new Blob(['pdf'])),
-  resumo: vi.fn().mockResolvedValue({ nps_geral: 72, media_geral: 4.3, total_pesquisas: 20, percentual_parciais: 5, periodo: 'Últimos 30 dias' }),
   setores: vi.fn().mockResolvedValue([{ setor_id: 2, nome: 'Enfermagem', nps: 75, media: 4.5 }]),
   turnos: vi.fn().mockResolvedValue([]),
   emAndamento: vi.fn().mockResolvedValue([]),
@@ -17,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../lib/api', () => ({
   api: {
-    dashboard: { resumo: mocks.resumo, setores: mocks.setores, turnos: mocks.turnos, emAndamento: mocks.emAndamento },
+    dashboard: { setores: mocks.setores, turnos: mocks.turnos, emAndamento: mocks.emAndamento },
     exportacoes: { excel: mocks.excel, pdf: mocks.pdf },
   },
 }))
@@ -43,6 +42,14 @@ afterEach(() => {
 })
 
 describe('exportação do dashboard', () => {
+  it('não mostra mais o resumo do período', async () => {
+    mocks.user = usuario('super_admin')
+    renderDashboard()
+
+    await screen.findByRole('button', { name: /Enfermagem/ })
+    expect(screen.queryByRole('heading', { name: 'Resumo do período' })).not.toBeInTheDocument()
+  })
+
   it('mostra os dois botões a quem tem permissão e oculta para visualizador', async () => {
     mocks.user = usuario('gestao')
     const { unmount } = renderDashboard()
@@ -77,7 +84,6 @@ describe('exportação do dashboard', () => {
     expect(screen.queryByLabelText('Setor')).not.toBeInTheDocument()
     const setor = await screen.findByRole('button', { name: /Enfermagem/ })
     await waitFor(() => {
-      expect(mocks.resumo).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
       expect(mocks.setores).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
       expect(mocks.emAndamento).toHaveBeenCalledWith(expect.objectContaining({ setor_id: 2 }))
     })
@@ -94,7 +100,6 @@ describe('exportação do dashboard', () => {
     renderDashboard()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('não está vinculado a um setor')
-    expect(mocks.resumo).not.toHaveBeenCalled()
     expect(mocks.setores).not.toHaveBeenCalled()
     expect(mocks.emAndamento).not.toHaveBeenCalled()
   })

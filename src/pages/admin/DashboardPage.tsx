@@ -55,25 +55,18 @@ export function DashboardPage() {
     ...datasDoPeriodo(periodo),
     ...(gestao ? (setorGestaoId ? { setor_id: setorGestaoId } : {}) : setorId ? { setor_id: setorId } : {}),
   }), [periodo, setorId, gestao, setorGestaoId])
-  const resumo = useQuery({ queryKey: ['resumo', filtros], queryFn: () => api.dashboard.resumo(filtros), enabled: escopoDisponivel })
   const setores = useQuery({ queryKey: ['dashboard-setores', filtros], queryFn: () => api.dashboard.setores(filtros), enabled: escopoDisponivel })
   const andamento = useQuery<PesquisaAndamento[]>({ queryKey: ['andamento', filtros], queryFn: () => api.dashboard.emAndamento(filtros), enabled: escopoDisponivel })
   const turnos = useQuery({ queryKey: ['turnos', setorSelecionado, filtros], queryFn: () => api.dashboard.turnos(setorSelecionado!, filtros), enabled: setorSelecionado !== null && escopoDisponivel })
-  const errosDashboard = [resumo.error, setores.error, andamento.error, turnos.error].filter(Boolean)
+  const errosDashboard = [setores.error, andamento.error, turnos.error].filter(Boolean)
   const erroDashboard = errosDashboard.find(erro => axios.isAxiosError(erro) && erro.response?.status === 403) ?? errosDashboard[0]
   const setoresVisiveis = gestao ? setores.data?.filter(setor => setor.setor_id === setorGestaoId) : setores.data
   const setorVinculado = setoresVisiveis?.[0]?.nome
-  const cards = resumo.data ? [
-    { titulo: 'NPS geral', valor: resumo.data.nps_geral, detalhe: `Baseado em ${resumo.data.total_concluidas ?? resumo.data.total_pesquisas} respostas. NPS vai de −100 a +100: promotores (notas 9–10) menos detratores (notas 0–6).`, icone: '↗', cor: 'bg-brand-50 text-brand-800', faixa: 'bg-brand-600' },
-    { titulo: 'Média das avaliações', valor: resumo.data.media_geral ?? '—', detalhe: 'Experiência média', icone: '★', cor: 'bg-support-50 text-support-800', faixa: 'bg-support-600' },
-    { titulo: 'Pesquisas completas', valor: resumo.data.total_concluidas ?? resumo.data.total_pesquisas, detalhe: 'Avaliações concluídas no período', icone: '✓', cor: 'bg-accent-300 text-ink', faixa: 'bg-accent-500' },
-    { titulo: 'Pesquisas incompletas', valor: resumo.data.total_parciais ?? 0, detalhe: 'Incompletas são pessoas que saíram antes de terminar; as respostas que deram continuam contando nas médias.', icone: '◷', cor: 'bg-slate-100 text-slate-700', faixa: 'bg-slate-400' },
-  ] : []
   useEffect(() => {
     if (errosDashboard.some(erro => axios.isAxiosError(erro) && erro.response?.status === 401)) {
       navigate('/admin/login', { replace: true, state: { mensagem: 'Sua sessão expirou. Entre novamente para continuar.' } })
     }
-  }, [resumo.error, setores.error, andamento.error, turnos.error, navigate])
+  }, [setores.error, andamento.error, turnos.error, navigate])
 
   async function exportar(formato: 'excel' | 'pdf') {
     setExportando(formato)
@@ -125,20 +118,6 @@ export function DashboardPage() {
     {gestao && !escopoDisponivel && <p role="alert" className="alert-error mt-4">⚠ Seu usuário não está vinculado a um setor. Solicite a correção do vínculo ao super administrador.</p>}
     {erroExportacao && <p role="alert" className="alert-error mt-4">⚠ {erroExportacao}</p>}
     {erroDashboard && <p role="alert" className="alert-error mt-4">⚠ {axios.isAxiosError(erroDashboard) && erroDashboard.response?.status === 403 ? 'Sua conta não tem permissão para visualizar estes indicadores.' : 'Não foi possível carregar os indicadores.'}</p>}
-
-    <section aria-labelledby="resumo-heading" className="mt-7">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Em números</p><h2 id="resumo-heading" className="mt-1 text-2xl font-bold tracking-tight text-ink">Resumo do período</h2></div><p className="text-sm text-slate-600">Atualizado conforme os filtros selecionados</p></div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {resumo.isLoading && Array.from({ length: 4 }, (_, indice) => <div key={indice} className="h-36 animate-pulse rounded-3xl bg-white shadow-sm motion-reduce:animate-none" />)}
-        {cards.map(card => <article key={card.titulo} className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-card">
-          <div className={`h-1.5 ${card.faixa}`} />
-          <div className="flex items-start justify-between gap-3 p-5">
-            <div><p className="text-sm font-semibold text-slate-600">{card.titulo}</p><p className="mt-3 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">{card.valor}</p><p className="mt-2 text-xs font-medium text-slate-500">{card.detalhe}</p></div>
-            <span aria-hidden="true" className={`grid size-11 shrink-0 place-items-center rounded-2xl text-xl font-extrabold ${card.cor}`}>{card.icone}</span>
-          </div>
-        </article>)}
-      </div>
-    </section>
 
     <div className="mt-7 grid items-start gap-5 xl:grid-cols-[1.55fr_.85fr]">
       <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-card sm:p-6">

@@ -19,7 +19,6 @@ export interface Usuario { id: number; nome: string; email: string; perfil: Perf
 export interface CriarGestor { nome: string; email: string; senha: string; perfil: 'gestao' | 'ouvidoria' | 'visualizador' | 'admin_setor'; setor_id?: number }
 export interface AtualizarGestor { nome?: string; email?: string; setor_id?: number }
 export interface LoginResposta { token: string; usuario: Usuario }
-export interface DashboardResumo { nps_geral: number; media_geral: number; total_pesquisas: number; percentual_parciais: number; total_concluidas?: number; total_parciais?: number; periodo: string | { inicio: string | null; fim: string | null } }
 export interface DashboardSetor { setor_id: number; nome: string; nps: number; media: number | null }
 export interface DashboardFiltro { inicio?: string; fim?: string; setor_id?: number }
 export interface Turno { turno: string; total: number; nps: number; media: number | null }
