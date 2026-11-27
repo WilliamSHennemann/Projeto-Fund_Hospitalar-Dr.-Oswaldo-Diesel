@@ -171,6 +171,24 @@ describe('administração de gestores', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('acesso de Gestor Recepção foi removido')
   })
 
+  it('permite remover acesso de Ouvidoria sem oferecer edição de gestor', async () => {
+    const ouvidoria: Usuario = { id: 9, nome: 'Equipe Ouvidoria', email: 'ouvidoria@fundacao.com', perfil: 'ouvidoria', permissoes: ['ouvidoria'] }
+    mocks.listarUsuarios.mockResolvedValueOnce([ouvidoria]).mockResolvedValueOnce([])
+    mocks.excluirGestor.mockResolvedValue(undefined)
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    renderPage()
+
+    const email = await screen.findByText(ouvidoria.email)
+    const linha = email.closest('li')
+    if (!linha) throw new Error('Conta de Ouvidoria não encontrada na lista.')
+
+    expect(within(linha).getByText('Ouvidoria')).toBeInTheDocument()
+    expect(within(linha).queryByRole('button', { name: /Editar/ })).not.toBeInTheDocument()
+    fireEvent.click(within(linha).getByRole('button', { name: 'Remover acesso' }))
+
+    await waitFor(() => expect(mocks.excluirGestor).toHaveBeenCalledWith(ouvidoria.id))
+  })
+
   it('não chama a API se o admin cancelar a remoção', async () => {
     const gestor: Usuario = { id: 8, nome: 'Gestor Recepção', email: 'gestor@fundacao.com', perfil: 'gestao', permissoes: [], setor_id: 1 }
     mocks.listarUsuarios.mockResolvedValueOnce([gestor])
