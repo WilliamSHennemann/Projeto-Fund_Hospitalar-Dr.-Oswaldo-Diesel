@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { auth } from '../../lib/auth'
 import { isGestao } from '../../lib/permissions'
@@ -19,6 +19,7 @@ const opcoesRostinho = [
 export function PerguntasPage() {
   const cliente = useQueryClient()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const usuario = auth.getUser()
   const gestao = isGestao(usuario) || usuario?.perfil === 'admin_setor'
   const superAdmin = usuario?.perfil === 'super_admin'
@@ -35,7 +36,9 @@ export function PerguntasPage() {
   const [erro, setErro] = useState('')
   const [perguntaApagar, setPerguntaApagar] = useState<Pergunta | null>(null)
   const [confirmacaoApagar, setConfirmacaoApagar] = useState('')
-  const [setorSelecionado, setSetorSelecionado] = useState<number | 'todos'>('todos')
+  const setorSolicitado = Number(searchParams.get('setor'))
+  const setorInicial = Number.isSafeInteger(setorSolicitado) && setorSolicitado > 0 ? setorSolicitado : 'todos'
+  const [setorSelecionado, setSetorSelecionado] = useState<number | 'todos'>(setorInicial)
   const [mostrarDesativadas, setMostrarDesativadas] = useState(false)
   const setoresVisiveis = gestao ? setores.data?.filter(setor => setor.id === setorGestaoId) : setores.data
   const listaExibida = (perguntas.data ?? []).filter(pergunta =>

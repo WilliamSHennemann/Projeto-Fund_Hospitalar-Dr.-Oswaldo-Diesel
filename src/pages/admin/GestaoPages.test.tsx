@@ -12,8 +12,8 @@ vi.mock('../../components/Marca', () => ({ Marca: () => null }))
 vi.mock('../../components/NavegacaoAdmin', () => ({ NavegacaoAdmin: () => null }))
 import { PerguntasPage, SetoresPage } from './GestaoPages'
 
-function renderPage(page: React.ReactNode) {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter>{page}</MemoryRouter></QueryClientProvider>)
+function renderPage(page: React.ReactNode, initialEntries = ['/']) {
+  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={initialEntries}>{page}</MemoryRouter></QueryClientProvider>)
 }
 
 afterEach(() => {
@@ -78,6 +78,23 @@ describe('cadastro de pergunta múltipla', () => {
     expect(await screen.findByRole('option', { name: 'Inativo' })).toBeInTheDocument()
     expect(mocks.listarSetores).toHaveBeenCalledOnce()
     expect(mocks.listarSetoresPublicos).not.toHaveBeenCalled()
+  })
+
+  it('abre as perguntas já filtradas pelo setor informado na URL', async () => {
+    mocks.user = { id: 1, nome: 'Admin', email: 'admin@fundacao.com', perfil: 'super_admin', permissoes: [] }
+    mocks.listarSetores.mockResolvedValueOnce([
+      { id: 1, nome: 'Recepção', slug: 'recepcao', url: '/recepcao', qrcode: '', ativo: true },
+      { id: 2, nome: 'Enfermagem', slug: 'enfermagem', url: '/enfermagem', qrcode: '', ativo: true },
+    ])
+    mocks.listarPerguntas.mockResolvedValueOnce([
+      { id: 1, texto: 'Pergunta da Recepção', tipo: 'texto', geral: false, setor_id: 1, ordem: 1, numero: 1, ativo: true, opcoes: [] },
+      { id: 2, texto: 'Pergunta da Enfermagem', tipo: 'texto', geral: false, setor_id: 2, ordem: 1, numero: 1, ativo: true, opcoes: [] },
+    ])
+    renderPage(<PerguntasPage />, ['/admin/perguntas?setor=1'])
+
+    expect(await screen.findByText('Pergunta da Recepção')).toBeInTheDocument()
+    expect(screen.queryByText('Pergunta da Enfermagem')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Perguntas do setor')).toHaveValue('1')
   })
 
   it('envia opções numeradas e não envia ordem', async () => {
